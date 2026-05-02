@@ -36,6 +36,8 @@ sim_state = {
 connected_clients: list[WebSocket] = []
 signal_id_counter = 1
 db_pool = None
+# Set symbol yang sedang dalam proses dibuka — mencegah race condition
+_opening_symbols: set = set()
 
 # ─── Database helpers ─────────────────────────────────────────────────────────
 
@@ -288,11 +290,22 @@ async def receive_signal(sig: Signal):
 async def approve_signal(req: ApproveRequest):
     sig = next((s for s in sim_state["signals"] if s["id"] == req.signal_id), None)
     if not sig: raise HTTPException(404, "Sinyal tidak ditemukan")
-    margin = sim_state["balance"] * req.margin_pct
-    if margin <= 0 or sim_state["balance"] < margin:
-        raise HTTPException(400, "Saldo tidak cukup")
-    sim_state["balance"] -= margin
-    pos = {
+
+    # Cek deduplikasi — 1 posisi per symbol
+    symbol = sig["symbol"]
+    already_open = any(p["symbol"] == symbol for p in sim_state["positions"])
+    if already_open or symbol in _opening_symbols:
+        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
+        return {"ok": False, "reason": f"{symbol} sudah ada posisi terbuka"}
+
+    # Lock symbol sementara proses dibuka
+    _opening_symbols.add(symbol)
+    try:
+        margin = sim_state["balance"] * req.margin_pct
+        if margin <= 0 or sim_state["balance"] < margin:
+            raise HTTPException(400, "Saldo tidak cukup")
+        sim_state["balance"] -= margin
+        pos = {
         "id": int(time.time() * 1000), "symbol": sig["symbol"],
         "direction": sig["direction"], "entry": sig["entry"],
         "tp": req.tp or sig["tp"], "sl": req.sl or sig["sl"],
@@ -300,12 +313,14 @@ async def approve_signal(req: ApproveRequest):
         "margin": round(margin, 4),
         "opened_at": datetime.now().strftime("%d/%m %H:%M"),
     }
-    sim_state["positions"].append(pos)
-    sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
-    await save_position(pos)
-    await save_account()
-    await push_state()
-    return {"ok": True, "position_id": pos["id"]}
+        sim_state["positions"].append(pos)
+        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
+        await save_position(pos)
+        await save_account()
+        await push_state()
+        return {"ok": True, "position_id": pos["id"]}
+    finally:
+        _opening_symbols.discard(symbol)
 
 @app.post("/reject/{signal_id}")
 async def reject_signal(signal_id: int):
