@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<title>AXANCTUM INTELLIGENCE 911</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #131020; --bg2: #1e1838; --bg3: #261f45;
+  --border: #3d3070; --border2: #6d55cc;
+  --text: #f5f0ff; --muted: #b8a8e8;
+  --teal: #5eead4; --pink: #f9a8d4;
+  --purple: #d8b4fe; --purple2: #a855f7;
+  --gold: #fde68a;
+  --card-glow: 0 0 0 0.5px #3d3070, 0 4px 20px #2d1f6020;
+}
+body { background: var(--bg); color: var(--text); font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; min-height: 100vh; }
+
+.hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 200; background: linear-gradient(180deg, #1a1430 0%, #131020 100%);
+}
+.logo-wrap { display: flex; flex-direction: column; }
+.logo { font-size: 15px; font-weight: bold; letter-spacing: 3px; background: linear-gradient(90deg, #e879f9, #5eead4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.logo-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-top: 1px; }
+.hdr-right { display: flex; align-items: center; gap: 10px; }
+.status { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #5eead4; animation: pulse 2s infinite; box-shadow: 0 0 10px #5eead4; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.btn-reset { background: transparent; border: 0.5px solid #4a3580; color: var(--muted); padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 10px; font-family: inherit; transition: all 0.2s; }
+.btn-reset:hover { border-color: var(--pink); color: var(--pink); }
+
+.layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 46px); }
+@media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+.sidebar { border-right: 0.5px solid var(--border); padding: 16px 14px; }
+.s-lbl { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.balance { font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #e879f9, #5eead4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 3px 0 6px; }
+.pnl-row { font-size: 11px; margin: 2px 0; display: flex; justify-content: space-between; }
+.divider { height: 0.5px; background: var(--border); margin: 12px 0; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.stat { background: var(--bg2); border-radius: 8px; padding: 8px 10px; border: 1px solid var(--border); box-shadow: var(--card-glow); }
+.stat .v { font-size: 14px; font-weight: bold; color: #d8b4fe; }
+.stat .l { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
+.card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 8px; box-shadow: var(--card-glow); }
+.card .s-lbl { display: block; margin-bottom: 6px; }
+input[type="number"] { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 11px; padding: 6px 8px; width: 100%; font-family: inherit; margin: 3px 0; outline: none; transition: border-color 0.2s; }
+input[type="number"]:focus { border-color: var(--purple); }
+.btn-grad { background: linear-gradient(90deg, #a855f7, #5eead4); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
+.btn-grad:hover { opacity: 0.85; }
+.flex-row { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.flex-row label { font-size: 9px; color: var(--muted); width: 55px; letter-spacing: 1px; }
+.flex-row input { width: 55px; margin: 0; }
+.flex-row span { font-size: 10px; color: var(--muted); }
+
+.toggle-wrap { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.toggle-label { font-size: 10px; color: var(--text); }
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 20px; transition: 0.3s; }
+.toggle input:checked ~ .toggle-track { background: #1e1035; border-color: var(--purple); }
+.toggle-dot { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: var(--muted); border-radius: 50%; transition: 0.3s; }
+.toggle input:checked ~ .toggle-dot { transform: translateX(16px); background: var(--purple); }
+
+.main { padding: 14px 16px; overflow-x: hidden; }
+.tabs { display: flex; gap: 3px; margin-bottom: 14px; border-bottom: 0.5px solid var(--border); padding-bottom: 8px; }
+.tab { font-size: 10px; padding: 5px 14px; border-radius: 20px; cursor: pointer; color: var(--muted); letter-spacing: 1px; border: 0.5px solid transparent; background: transparent; font-family: inherit; transition: all 0.2s; }
+.tab.active { background: var(--bg2); color: var(--purple); border-color: var(--border2); }
+.tab:hover:not(.active) { color: var(--text); }
+.notif { display: inline-block; background: var(--purple2); color: #fff; border-radius: 10px; font-size: 9px; padding: 1px 5px; margin-left: 3px; font-weight: bold; }
+
+.chips { display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap; }
+.chip { font-size: 9px; padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--border2); color: var(--muted); cursor: pointer; background: transparent; font-family: inherit; letter-spacing: 1px; transition: all 0.2s; }
+.chip.active { background: #1e1035; border-color: var(--purple); color: var(--purple); }
+.chip.long-c { border-color: #1a3d35; color: var(--teal); }
+.chip.short-c { border-color: #3d1a2e; color: var(--pink); }
+
+.tbl-wrap { overflow-x: auto; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 480px; }
+th { color: var(--muted); font-weight: 400; padding: 6px 8px; text-align: left; border-bottom: 0.5px solid var(--border); letter-spacing: 1px; font-size: 9px; background: var(--bg2); }
+td { padding: 8px 8px; border-bottom: 0.5px solid var(--bg3); vertical-align: middle; transition: background 0.15s; }
+tr:hover td { background: #16102a55; }
+.no-data { color: var(--border2); text-align: center; padding: 30px; font-size: 11px; }
+
+.badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; display: inline-block; font-weight: bold; letter-spacing: 1px; }
+.long-b { background: #0d2e2a; color: var(--teal); border: 0.5px solid #1a4d3a; }
+.short-b { background: #2d0f1e; color: var(--pink); border: 0.5px solid #4d1a30; }
+.grade-a { background: #1e1035; color: var(--purple); border: 0.5px solid #3d2060; }
+.grade-b { background: #1a150a; color: var(--gold); border: 0.5px solid #3d2f0a; }
+
+.green { color: var(--teal); }
+.red { color: var(--pink); }
+.muted { color: var(--muted); }
+
+.close-btn { background: transparent; border: 0.5px solid var(--border2); color: var(--muted); border-radius: 4px; padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: inherit; transition: all 0.2s; letter-spacing: 1px; }
+.close-btn:hover { border-color: var(--pink); color: var(--pink); }
+.chart-btn { background: transparent; border: 0.5px solid var(--border2); color: var(--purple); border-radius: 4px; padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-right: 4px; }
+.chart-btn:hover { background: var(--bg3); border-color: var(--purple); }
+td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 10px; }
+
+#toast { position: fixed; bottom: 20px; right: 16px; background: var(--bg2); border: 0.5px solid var(--purple); color: var(--purple); padding: 10px 16px; border-radius: 10px; font-size: 11px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; max-width: 280px; }
+#toast.show { opacity: 1; }
+#toast.err { border-color: var(--pink); color: var(--pink); }
+#toast.ok { border-color: var(--teal); color: var(--teal); }
+
+.modal-overlay { position: fixed; inset: 0; background: #0e0b16cc; backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 16px; width: 100%; max-width: 820px; box-shadow: 0 8px 40px #9333ea20; overflow: hidden; }
+.modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
+.modal-title { font-size: 13px; font-weight: bold; color: var(--purple); letter-spacing: 2px; }
+.modal-close { background: transparent; border: 0.5px solid var(--border2); color: var(--muted); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 11px; }
+.modal-close:hover { border-color: var(--pink); color: var(--pink); }
+.modal-info { display: flex; gap: 16px; padding: 10px 16px; border-bottom: 0.5px solid var(--border); flex-wrap: wrap; }
+.modal-stat { display: flex; flex-direction: column; gap: 2px; }
+.modal-stat .ml { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+.modal-stat .mv { font-size: 13px; font-weight: bold; }
+.chart-container { padding: 12px; height: 360px; position: relative; background: var(--bg); }
+.chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
+.auto-badge { display: inline-block; background: #1e1035; border: 0.5px solid var(--purple); color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div class="modal-overlay" id="chartModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="chartTitle">— 15M</div>
+      <button class="modal-close" onclick="closeChart()">✕ TUTUP</button>
+    </div>
+    <div class="modal-info" id="chartInfo"></div>
+    <div class="chart-container">
+      <div class="chart-loading" id="chartLoading">Memuat data...</div>
+      <canvas id="chartCanvas" style="display:none;"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="hdr">
+  <div class="logo-wrap">
+    <div class="logo">AXANCTUM INTELLIGENCE 911</div>
+    <div class="logo-sub">SIMULATION DASHBOARD</div>
+  </div>
+  <div class="hdr-right">
+    <button class="btn-reset" onclick="doReset()">RESET</button>
+    <div class="status"><div class="dot"></div><span id="wsStatus">CONNECTING...</span></div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="s-lbl">Account Overview</div>
+    <div class="balance" id="balanceEl">$1,000.00</div>
+    <div class="pnl-row"><span class="muted">uPnL</span><span id="upnlEl" class="green">+$0.00</span></div>
+    <div class="pnl-row"><span class="muted">Total PnL</span><span id="tpnlEl" class="green">+$0.00</span></div>
+    <div class="divider"></div>
+    <div class="stats-grid">
+      <div class="stat"><div class="v" id="winRateEl">0%</div><div class="l">WIN RATE</div></div>
+      <div class="stat"><div class="v" id="tradesEl">0</div><div class="l">TRADES</div></div>
+      <div class="stat"><div class="v" id="marginEl">$0</div><div class="l">MARGIN</div></div>
+      <div class="stat"><div class="v" id="openPosEl">0</div><div class="l">OPEN POS</div></div>
+    </div>
+    <div class="card">
+      <span class="s-lbl">Deposit Saldo</span>
+      <input type="number" id="depositAmt" placeholder="Jumlah ($)" value="1000" />
+      <button class="btn-grad" onclick="doDeposit()">+ TAMBAH SALDO</button>
+    </div>
+    <div class="card">
+      <span class="s-lbl">Setting Default</span>
+      <div class="flex-row"><label>Leverage</label><input type="number" id="defLev" value="5" min="1" max="125" /><span>×</span></div>
+      <div class="flex-row"><label>Margin %</label><input type="number" id="defMarginPct" value="10" min="1" max="100" /><span>%</span></div>
+    </div>
+    <div class="card">
+      <span class="s-lbl">Mode Auto-Open</span>
+      <div class="toggle-wrap">
+        <span class="toggle-label">Auto buka posisi</span>
+        <label class="toggle">
+          <input type="checkbox" id="autoToggle" checked onchange="onToggleAuto(this)">
+          <span class="toggle-track"></span>
+          <span class="toggle-dot"></span>
+        </label>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:5px;line-height:1.5;">Sinyal masuk langsung dibuka. Duplikat diabaikan selama posisi terbuka.</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('signals',this)">SIGNALS <span class="notif" id="sig-count">0</span></button>
+      <button class="tab" onclick="switchTab('positions',this)">OPEN POS <span class="notif" id="pos-count">0</span></button>
+      <button class="tab" onclick="switchTab('history',this)">HISTORY</button>
+    </div>
+
+    <div id="tab-signals">
+      <div class="chips">
+        <button class="chip active" onclick="filterSig('ALL',this)">ALL</button>
+        <button class="chip long-c" onclick="filterSig('LONG',this)">▲ LONG</button>
+        <button class="chip short-c" onclick="filterSig('SHORT',this)">▼ SHORT</button>
+        <button class="chip" onclick="filterSig('A+',this)">GRADE A+</button>
+        <button class="chip" onclick="filterSig('B',this)">GRADE B</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>TP</th><th>SL</th><th>GRADE</th><th>LEV</th><th>WAKTU</th><th>STATUS</th></tr></thead>
+          <tbody id="signalsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-positions" style="display:none;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>HARGA</th><th>uPnL</th><th>TP</th><th>SL</th><th>MARGIN</th><th>ACTION</th></tr></thead>
+          <tbody id="posBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-history" style="display:none;">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>WAKTU</th><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>EXIT</th><th>PnL</th><th>REASON</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loginOverlay" style="
+  position:fixed;inset:0;background:#0e0b16;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+">
+  <div style="
+    background:#1e1838;border:1px solid #6d55cc;border-radius:16px;
+    padding:36px 40px;width:320px;text-align:center;
+    box-shadow:0 8px 40px #a855f720;
+  ">
+    <div style="font-size:16px;font-weight:bold;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(90deg,#e879f9,#5eead4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AXANCTUM</div>
+    <div style="font-size:9px;color:#b8a8e8;letter-spacing:2px;margin-bottom:28px;">INTELLIGENCE 911</div>
+    <div style="font-size:10px;color:#b8a8e8;letter-spacing:1px;margin-bottom:8px;text-align:left;">PASSWORD</div>
+    <input id="pwInput" type="password" placeholder="Masukkan password..." style="
+      background:#131020;border:1px solid #3d3070;border-radius:8px;
+      color:#f5f0ff;font-size:13px;padding:10px 14px;width:100%;
+      font-family:inherit;outline:none;margin-bottom:12px;
+      transition:border-color 0.2s;
+    "
+    onkeydown="if(event.key==='Enter')doLogin()"
+    onfocus="this.style.borderColor='#a855f7'"
+    onblur="this.style.borderColor='#3d3070'"
+    />
+    <div id="pwError" style="color:#f9a8d4;font-size:10px;margin-bottom:10px;min-height:16px;"></div>
+    <button onclick="doLogin()" style="
+      background:linear-gradient(90deg,#a855f7,#5eead4);color:#fff;
+      border:none;border-radius:8px;padding:10px;width:100%;
+      font-family:inherit;font-size:11px;font-weight:bold;
+      letter-spacing:2px;cursor:pointer;transition:opacity 0.2s;
+    " onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
+      MASUK →
+    </button>
+  </div>
+</div>
+
+<script>
+const API = location.origin;
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+const SESSION_KEY = 'axanctum_auth';
+
+async function doLogin() {
+  const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  const res = await fetch(API + '/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw})
+  });
+  if (res.ok) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('loginOverlay').style.display = 'none';
+    connectWS();
+  } else {
+    document.getElementById('pwError').textContent = 'Password salah, coba lagi';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+function checkSession() {
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('loginOverlay').style.display = 'none';
+    return true;
+  }
+  return false;
+}
+let state = { balance:1000, realized_pnl:0, wins:0, losses:0, positions:[], signals:[], history:[], prices:{} };
+let positionsPnl = {};
+let sigFilter = 'ALL';
+let autoOpen = true;
+let ws;
+
+function onToggleAuto(el) {
+  autoOpen = el.checked;
+  showToast(autoOpen ? 'Auto-open aktif' : 'Mode manual aktif');
+  renderSignals();
+}
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => { document.getElementById('wsStatus').textContent = 'LIVE'; };
+  ws.onmessage = async (evt) => {
+    const data = JSON.parse(evt.data);
+    if (data.type === 'state') {
+      state = data; renderAll();
+    } else if (data.type === 'prices') {
+      state.prices = data.prices;
+      positionsPnl = {};
+      (data.positions_pnl||[]).forEach(p => { positionsPnl[p.id] = p; });
+      updateSidebar();
+      if (document.getElementById('tab-positions').style.display !== 'none') {
+        // Jangan re-render kalau user sedang edit input TP/SL
+        const activeEl = document.activeElement;
+        const isEditingTPSL = activeEl && (activeEl.classList.contains('tp-input') || activeEl.classList.contains('sl-input'));
+        if (!isEditingTPSL) renderPositions();
+        else updatePnlInline(); // update PnL tanpa re-render tabel
+      }
+    } else if (data.type === 'new_signal' && autoOpen) {
+      await autoApprove(data.signal);
+    }
+  };
+  ws.onclose = () => { document.getElementById('wsStatus').textContent = 'RECONNECTING...'; setTimeout(connectWS, 3000); };
+  ws.onerror = () => ws.close();
+}
+
+async function autoApprove(sig) {
+  const alreadyOpen = (state.positions||[]).some(p => p.symbol === sig.symbol);
+  if (alreadyOpen) { showToast(`${sig.symbol} sudah ada posisi, diabaikan`); return; }
+  const lev = parseInt(document.getElementById('defLev').value) || 5;
+  const mPct = parseFloat(document.getElementById('defMarginPct').value) / 100 || 0.1;
+  const res = await api('POST', '/approve', { signal_id: sig.id, leverage: lev, margin_pct: mPct });
+  if (res.ok) showToast(`AUTO: ${sig.symbol} ${sig.direction} dibuka`, 'ok');
+}
+
+async function api(method, path, body) {
+  try {
+    const res = await fetch(API + path, { method, headers: {'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+    return await res.json();
+  } catch(e) { return {}; }
+}
+
+async function closePosition(id) { await api('POST', '/close', { position_id: id, reason: 'Manual' }); }
+async function updateTPSL(id) {
+  const row = document.querySelector(`[data-posid="${id}"]`);
+  if (!row) return;
+  const tp = parseFloat(row.querySelector('.tp-input').value);
+  const sl = parseFloat(row.querySelector('.sl-input').value);
+  if (isNaN(tp) || isNaN(sl)) return;
+  // Update state lokal juga supaya re-render tidak reset nilai
+  const pos = (state.positions||[]).find(p => p.id === id);
+  if (pos) { pos.tp = tp; pos.sl = sl; }
+  const res = await api('POST', `/update-position/${id}?tp=${tp}&sl=${sl}`);
+  if (res.ok !== false) showToast(`TP/SL diperbarui`, 'ok');
+}
+async function approveManual(id) {
+  const lev = parseInt(document.getElementById('defLev').value) || 5;
+  const mPct = parseFloat(document.getElementById('defMarginPct').value) / 100 || 0.1;
+  await api('POST', '/approve', { signal_id: id, leverage: lev, margin_pct: mPct });
+}
+async function doDeposit() {
+  const amt = parseFloat(document.getElementById('depositAmt').value);
+  if (!amt || amt <= 0) return;
+  await api('POST', '/deposit', { amount: amt });
+  showToast(`+$${amt.toFixed(2)} ditambahkan`, 'ok');
+}
+async function doReset() {
+  if (!confirm('Reset saldo ke $1,000?')) return;
+  await api('POST', '/reset'); showToast('Reset berhasil');
+}
+
+function fmt(n,d=2){return parseFloat(n).toFixed(d);}
+function fmtPrice(n){return n<1?parseFloat(n).toFixed(5):parseFloat(n).toLocaleString(undefined,{maximumFractionDigits:2});}
+function fmtPnl(n){return(n>=0?'+$':'-$')+Math.abs(n).toFixed(2);}
+
+function renderAll(){
+  updateSidebar(); renderSignals(); renderPositions(); renderHistory();
+  document.getElementById('sig-count').textContent = state.signals.length;
+  document.getElementById('pos-count').textContent = state.positions.length;
+}
+
+function updateSidebar(){
+  const upnl = Object.values(positionsPnl).reduce((s,p)=>s+(p.upnl||0),0);
+  document.getElementById('balanceEl').textContent = '$'+(state.balance+upnl).toFixed(2);
+  const ue=document.getElementById('upnlEl'); ue.textContent=fmtPnl(upnl); ue.className=upnl>=0?'green':'red';
+  const te=document.getElementById('tpnlEl'); te.textContent=fmtPnl(state.realized_pnl||0); te.className=(state.realized_pnl||0)>=0?'green':'red';
+  const t=(state.wins||0)+(state.losses||0);
+  document.getElementById('winRateEl').textContent=t>0?Math.round(state.wins/t*100)+'%':'0%';
+  document.getElementById('tradesEl').textContent=t;
+  const m=(state.positions||[]).reduce((s,p)=>s+(p.margin||0),0);
+  document.getElementById('marginEl').textContent='$'+m.toFixed(0);
+  document.getElementById('openPosEl').textContent=(state.positions||[]).length;
+}
+
+function renderSignals(){
+  const sigs=(state.signals||[]).filter(s=>{
+    if(sigFilter==='ALL')return true;
+    if(sigFilter==='LONG'||sigFilter==='SHORT')return s.direction===sigFilter;
+    if(sigFilter==='A+')return s.grade==='A+';
+    if(sigFilter==='B')return s.grade==='B';
+    return true;
+  });
+  const body=document.getElementById('signalsBody');
+  if(!sigs.length){body.innerHTML='<tr><td colspan="9" class="no-data">Belum ada sinyal masuk dari bot</td></tr>';return;}
+  body.innerHTML=sigs.map(s=>{
+    const isOpen=(state.positions||[]).some(p=>p.symbol===s.symbol);
+    return`<tr>
+      <td style="font-weight:bold">${s.symbol}</td>
+      <td><span class="badge ${s.direction==='LONG'?'long-b':'short-b'}">${s.direction==='LONG'?'▲':'▼'} ${s.direction}</span></td>
+      <td>${fmtPrice(s.entry)}</td><td class="green">${fmtPrice(s.tp)}</td><td class="red">${fmtPrice(s.sl)}</td>
+      <td><span class="badge ${s.grade==='A+'?'grade-a':'grade-b'}">${s.grade}</span></td>
+      <td>${s.leverage}×</td><td class="muted">${s.time||''}</td>
+      <td>${isOpen?'<span class="muted" style="font-size:9px">SUDAH BUKA</span>':autoOpen?'<span class="auto-badge">AUTO</span>':`<button class="chart-btn" onclick="approveManual(${s.id})">OPEN</button>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPositions(){
+  const body=document.getElementById('posBody');
+  const positions=state.positions||[];
+  if(!positions.length){body.innerHTML='<tr><td colspan="9" class="no-data">Tidak ada posisi terbuka</td></tr>';return;}
+  body.innerHTML=positions.map(p=>{
+    const live=positionsPnl[p.id];
+    const cur=live?live.current_price:(state.prices[p.symbol]||p.entry);
+    const upnl=live?live.upnl:0;
+    const pct=p.margin>0?(upnl/(p.margin*p.leverage)*100):0;
+    return`<tr data-posid="${p.id}">
+      <td style="font-weight:bold">${p.symbol}</td>
+      <td><span class="badge ${p.direction==='LONG'?'long-b':'short-b'}">${p.direction==='LONG'?'▲':'▼'} ${p.direction}</span></td>
+      <td>${fmtPrice(p.entry)}</td><td>${fmtPrice(cur)}</td>
+      <td class="pnl-cell ${upnl>=0?'green':'red'}">${fmtPnl(upnl)} <span class="muted">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span></td>
+      <td><input type="number" class="tp-input" value="${p.tp}" step="0.001" onblur="updateTPSL(${p.id})" onkeydown="if(event.key==='Enter')updateTPSL(${p.id})"/></td>
+      <td><input type="number" class="sl-input" value="${p.sl}" step="0.001" onblur="updateTPSL(${p.id})" onkeydown="if(event.key==='Enter')updateTPSL(${p.id})"/></td>
+      <td>$${fmt(p.margin)}</td>
+      <td>
+        <button class="chart-btn" onclick="openChart('${p.symbol}',${p.entry},${p.tp},${p.sl},'${p.direction}',${p.id})">CHART</button>
+        <button class="close-btn" onclick="closePosition(${p.id})">CLOSE</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderHistory(){
+  const body=document.getElementById('histBody');
+  const hist=[...(state.history||[])].reverse();
+  if(!hist.length){body.innerHTML='<tr><td colspan="7" class="no-data">Belum ada trade selesai</td></tr>';return;}
+  body.innerHTML=hist.map(h=>`<tr>
+    <td class="muted">${h.time}</td><td style="font-weight:bold">${h.symbol}</td>
+    <td><span class="badge ${h.direction==='LONG'?'long-b':'short-b'}">${h.direction}</span></td>
+    <td>${fmtPrice(h.entry)}</td><td>${fmtPrice(h.exit)}</td>
+    <td class="${h.pnl>=0?'green':'red'}">${fmtPnl(h.pnl)}</td>
+    <td style="color:${h.reason==='TP'?'var(--teal)':h.reason==='SL'?'var(--pink)':'var(--muted)'}">${h.reason}</td>
+  </tr>`).join('');
+}
+
+// ─── Chart ────────────────────────────────────────────────────────────────────
+async function openChart(symbol, entry, tp, sl, direction, posId) {
+  document.getElementById('chartModal').classList.add('open');
+  document.getElementById('chartTitle').textContent = `${symbol} — 15M`;
+  document.getElementById('chartLoading').style.display = 'flex';
+  document.getElementById('chartCanvas').style.display = 'none';
+
+  const live = positionsPnl[posId];
+  const upnl = live ? live.upnl : 0;
+  const cur = live ? live.current_price : (state.prices[symbol] || entry);
+
+  document.getElementById('chartInfo').innerHTML = `
+    <div class="modal-stat"><div class="ml">DIR</div><div class="mv" style="color:${direction==='LONG'?'var(--teal)':'var(--pink)'}">${direction==='LONG'?'▲':'▼'} ${direction}</div></div>
+    <div class="modal-stat"><div class="ml">ENTRY</div><div class="mv">${fmtPrice(entry)}</div></div>
+    <div class="modal-stat"><div class="ml">HARGA</div><div class="mv">${fmtPrice(cur)}</div></div>
+    <div class="modal-stat"><div class="ml">TP</div><div class="mv" style="color:var(--teal)">${fmtPrice(tp)}</div></div>
+    <div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--pink)">${fmtPrice(sl)}</div></div>
+    <div class="modal-stat"><div class="ml">uPnL</div><div class="mv ${upnl>=0?'green':'red'}">${fmtPnl(upnl)}</div></div>`;
+
+  try {
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=80`);
+    const klines = await res.json();
+    const candles = klines.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
+
+    const canvas = document.getElementById('chartCanvas');
+    const container = canvas.parentElement;
+    canvas.width = container.offsetWidth - 24;
+    canvas.height = container.offsetHeight - 24;
+
+    document.getElementById('chartLoading').style.display = 'none';
+    canvas.style.display = 'block';
+
+    drawCandles(canvas.getContext('2d'), canvas.width, canvas.height, candles, entry, tp, sl);
+  } catch(e) {
+    document.getElementById('chartLoading').textContent = 'Gagal memuat chart';
+  }
+}
+
+function drawCandles(ctx, W, H, candles, entry, tp, sl) {
+  const PAD = {t:20,r:68,b:28,l:8};
+  const cW = W-PAD.l-PAD.r, cH = H-PAD.t-PAD.b;
+  const all = [...candles.flatMap(c=>[c.h,c.l]), entry, tp, sl];
+  const minP = Math.min(...all)*0.9985, maxP = Math.max(...all)*1.0015;
+  const rng = maxP - minP;
+  const toY = p => PAD.t + cH - ((p-minP)/rng)*cH;
+  const gap = cW/candles.length;
+  const cw = Math.max(2, gap*0.65);
+
+  ctx.fillStyle='#0e0b16'; ctx.fillRect(0,0,W,H);
+
+  // Grid
+  for(let i=0;i<=5;i++){
+    const y=PAD.t+(cH/5)*i;
+    ctx.strokeStyle='#2e205028'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
+    ctx.fillStyle='#a090cc70'; ctx.font='9px Courier New'; ctx.textAlign='left';
+    ctx.fillText(fmtPrice(maxP-(rng/5)*i), W-PAD.r+4, y+3);
+  }
+
+  // Lines
+  const drawLine = (price, color, label) => {
+    const y = toY(price);
+    ctx.strokeStyle=color+'90'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=color; ctx.font='bold 9px Courier New';
+    ctx.fillText(label+' '+fmtPrice(price), W-PAD.r+4, y+3);
+  };
+  drawLine(tp,'#2dd4bf','TP');
+  drawLine(sl,'#f472b6','SL');
+  drawLine(entry,'#c084fc','ENTRY');
+
+  // Candles
+  candles.forEach((c,i) => {
+    const x = PAD.l + i*gap + gap/2;
+    const up = c.c >= c.o;
+    const col = up ? '#2dd4bf' : '#f472b6';
+    const bTop = toY(Math.max(c.o,c.c)), bBot = toY(Math.min(c.o,c.c));
+    const bH = Math.max(1, bBot-bTop);
+    ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x,toY(c.h)); ctx.lineTo(x,toY(c.l)); ctx.stroke();
+    ctx.fillStyle=up?'#2dd4bf35':'#f472b635';
+    ctx.fillRect(x-cw/2, bTop, cw, bH);
+    ctx.strokeRect(x-cw/2, bTop, cw, bH);
+  });
+
+  // Last price box
+  const last = candles[candles.length-1];
+  const ly = toY(last.c);
+  ctx.fillStyle='#1c1535'; ctx.fillRect(W-PAD.r+2, ly-8, 60, 16);
+  ctx.strokeStyle='#c084fc'; ctx.lineWidth=0.5; ctx.strokeRect(W-PAD.r+2, ly-8, 60, 16);
+  ctx.fillStyle='#c084fc'; ctx.font='bold 9px Courier New';
+  ctx.fillText(fmtPrice(last.c), W-PAD.r+5, ly+3);
+}
+
+function updatePnlInline() {
+  // Update hanya kolom PnL tanpa re-render seluruh tabel
+  (state.positions||[]).forEach(p => {
+    const row = document.querySelector(`[data-posid="${p.id}"]`);
+    if (!row) return;
+    const live = positionsPnl[p.id];
+    const upnl = live ? live.upnl : 0;
+    const pct = p.margin > 0 ? (upnl / (p.margin * p.leverage) * 100) : 0;
+    const pnlCell = row.querySelector('.pnl-cell');
+    if (pnlCell) {
+      pnlCell.className = 'pnl-cell ' + (upnl >= 0 ? 'green' : 'red');
+      pnlCell.innerHTML = fmtPnl(upnl) + ` <span class="muted">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span>`;
+    }
+    const cur = live ? live.current_price : (state.prices[p.symbol] || p.entry);
+    const priceCell = row.querySelector('.cur-price');
+    if (priceCell) priceCell.textContent = fmtPrice(cur);
+  });
+}
+
+function closeChart() { document.getElementById('chartModal').classList.remove('open'); }
+
+function switchTab(name,el){
+  ['signals','positions','history'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===name?'block':'none';});
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
+  if(name==='history')renderHistory();
+  if(name==='positions')renderPositions();
+}
+function filterSig(f,el){sigFilter=f;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderSignals();}
+function showToast(msg,type=''){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.className=type==='err'?'show err':type==='ok'?'show ok':'show';
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+if (!checkSession()) {
+  // Tampilkan login, connectWS dipanggil setelah login berhasil
+  document.getElementById('pwInput').focus();
+} else {
+  connectWS();
+}
+</script>
+</body>
+</html>
