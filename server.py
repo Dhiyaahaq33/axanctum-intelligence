@@ -32,6 +32,7 @@ sim_state = {
     "signals":      [],
     "history":      [],
     "prices":       {},
+    "max_positions": 10,  # max posisi terbuka sekaligus (0 = tidak terbatas)
 }
 connected_clients: list[WebSocket] = []
 signal_id_counter = 1
@@ -145,6 +146,7 @@ async def push_state():
         "signals":      sim_state["signals"],
         "history":      sim_state["history"][-50:],
         "prices":       sim_state["prices"],
+        "max_positions": sim_state.get("max_positions", 0),
     })
 
 # ─── Binance price feed ───────────────────────────────────────────────────────
@@ -291,6 +293,12 @@ async def approve_signal(req: ApproveRequest):
     sig = next((s for s in sim_state["signals"] if s["id"] == req.signal_id), None)
     if not sig: raise HTTPException(404, "Sinyal tidak ditemukan")
 
+    # Cek max posisi terbuka
+    max_pos = sim_state.get("max_positions", 0)
+    if max_pos > 0 and len(sim_state["positions"]) >= max_pos:
+        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
+        return {"ok": False, "reason": f"Max posisi ({max_pos}) sudah tercapai"}
+
     # Cek deduplikasi — 1 posisi per symbol
     symbol = sig["symbol"]
     already_open = any(p["symbol"] == symbol for p in sim_state["positions"])
@@ -344,10 +352,24 @@ async def update_position(pos_id: int, tp: Optional[float] = None, sl: Optional[
     await save_position(pos)
     return {"ok": True}
 
+@app.post("/set-max-positions")
+async def set_max_positions(max_pos: int):
+    sim_state["max_positions"] = max(0, max_pos)
+    await push_state()
+    return {"ok": True, "max_positions": sim_state["max_positions"]}
+
 @app.post("/deposit")
 async def deposit(req: DepositRequest):
-    if req.amount <= 0: raise HTTPException(400, "Jumlah harus positif")
+    if req.amount == 0: raise HTTPException(400, "Jumlah tidak boleh 0")
     sim_state["balance"] += req.amount
+    await save_account()
+    await push_state()
+    return {"ok": True, "balance": sim_state["balance"]}
+
+@app.post("/set-balance")
+async def set_balance(req: DepositRequest):
+    if req.amount <= 0: raise HTTPException(400, "Saldo harus lebih dari 0")
+    sim_state["balance"] = req.amount
     await save_account()
     await push_state()
     return {"ok": True, "balance": sim_state["balance"]}
@@ -372,6 +394,19 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         if websocket in connected_clients:
             connected_clients.remove(websocket)
+
+@app.get("/klines/{symbol}")
+async def get_klines(symbol: str, interval: str = "15m", limit: int = 80):
+    """Proxy endpoint untuk chart — ambil dari Binance Futures supaya tidak kena block ISP."""
+    import aiohttp
+    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, ssl=False) as resp:
+                data = await resp.json()
+                return data
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
