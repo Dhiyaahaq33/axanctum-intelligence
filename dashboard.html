@@ -168,11 +168,8 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     <div class="card">
       <span class="s-lbl">Kelola Saldo</span>
       <input type="number" id="depositAmt" placeholder="Jumlah ($)" value="1000" />
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:5px;">
-        <button class="btn-grad" onclick="doDeposit()" style="font-size:9px;padding:6px 4px;">+ TAMBAH</button>
-        <button class="btn-grad" onclick="doWithdraw()" style="font-size:9px;padding:6px 4px;background:linear-gradient(90deg,#f472b6,#9333ea);">− KURANGI</button>
-        <button class="btn-grad" onclick="doSetBalance()" style="font-size:9px;padding:6px 4px;background:linear-gradient(90deg,#2dd4bf,#9333ea);">= SET</button>
-      </div>
+      <button onclick="doDeposit()" style="width:100%;margin-top:5px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#2dd4bf;color:#0e0b16;font-weight:bold;letter-spacing:1px;">+ TAMBAH</button>
+      <button onclick="doWithdraw()" style="width:100%;margin-top:4px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#f472b6;color:#0e0b16;font-weight:bold;letter-spacing:1px;">− KURANGI</button>
     </div>
     <div class="card">
       <span class="s-lbl">Setting Default</span>
@@ -181,13 +178,11 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     </div>
     <div class="card">
       <span class="s-lbl">Max Posisi Terbuka</span>
-      <div class="flex-row" style="margin-top:6px;">
-        <label>Max Pos</label>
-        <input type="number" id="maxPosInput" value="10" min="0" max="100" style="width:55px;" />
-        <span style="font-size:9px;color:var(--muted);">pos</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+        <input type="number" id="maxPosInput" placeholder="0" min="0" max="100" style="width:60px;" onkeydown="if(event.key==='Enter')setMaxPos()" />
+        <span style="font-size:9px;color:var(--muted);">pos (0 = ∞)</span>
       </div>
-      <div style="font-size:9px;color:var(--muted);margin-top:4px;line-height:1.5;">0 = tidak terbatas</div>
-      <button class="btn-grad" onclick="setMaxPos()" style="margin-top:6px;">SET</button>
+      <button onclick="setMaxPos()" style="width:100%;margin-top:6px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#a78bfa;color:#0e0b16;font-weight:bold;letter-spacing:1px;">SET MAX</button>
     </div>
 
     <div class="card">
@@ -441,7 +436,7 @@ function updateSidebar(){
   const m=(state.positions||[]).reduce((s,p)=>s+(p.margin||0),0);
   document.getElementById('marginEl').textContent='$'+m.toFixed(0);
   document.getElementById('openPosEl').textContent=(state.positions||[]).length;
-  if(state.max_positions !== undefined && document.getElementById('maxPosInput')) document.getElementById('maxPosInput').value = state.max_positions;
+  // max_positions tidak di-sync ke input supaya user bisa edit bebas
 }
 
 function renderSignals(){
