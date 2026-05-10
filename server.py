@@ -32,7 +32,9 @@ sim_state = {
     "signals":      [],
     "history":      [],
     "prices":       {},
-    "max_positions": 10,  # max posisi terbuka sekaligus (0 = tidak terbatas)
+    "max_positions": 0,
+    "default_leverage": 5,
+    "default_margin_pct": 10,
 }
 connected_clients: list[WebSocket] = []
 signal_id_counter = 1
@@ -147,6 +149,10 @@ async def push_state():
         "history":      sim_state["history"][-50:],
         "prices":       sim_state["prices"],
         "max_positions": sim_state.get("max_positions", 0),
+        "default_leverage": sim_state.get("default_leverage", 5),
+        "default_margin_pct": sim_state.get("default_margin_pct", 10),
+        "default_leverage": sim_state.get("default_leverage", 5),
+        "default_margin_pct": sim_state.get("default_margin_pct", 10),
     })
 
 # ─── Binance price feed ───────────────────────────────────────────────────────
@@ -191,16 +197,19 @@ async def check_tp_sl():
 async def price_broadcaster():
     while True:
         await asyncio.sleep(1)
-        if sim_state["prices"] and connected_clients:
+        if connected_clients and sim_state["positions"]:
             pnl_list = []
-            # Hanya kirim harga koin yang ada di posisi terbuka (bukan semua 500+ koin)
             relevant_prices = {}
             for pos in sim_state["positions"]:
-                price = sim_state["prices"].get(pos["symbol"], pos["entry"])
-                relevant_prices[pos["symbol"]] = price
-                pct = (price - pos["entry"]) / pos["entry"]
+                sym = pos["symbol"]
+                # Coba dapat harga dari WebSocket (bisa ada atau tidak)
+                price = sim_state["prices"].get(sym, 0)
+                if price == 0:
+                    price = pos["entry"]  # fallback ke entry kalau belum ada harga
+                relevant_prices[sym] = round(price, 8)
+                pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] > 0 else 0
                 pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
-                pnl_list.append({"id": pos["id"], "current_price": round(price, 6), "upnl": round(pnl, 4)})
+                pnl_list.append({"id": pos["id"], "current_price": round(price, 8), "upnl": round(pnl, 4)})
             await broadcast({"type": "prices", "prices": relevant_prices, "positions_pnl": pnl_list})
 
 async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] = None):
@@ -360,6 +369,26 @@ async def set_max_positions(max_pos: int):
     sim_state["max_positions"] = max(0, max_pos)
     await push_state()
     return {"ok": True, "max_positions": sim_state["max_positions"]}
+
+class SettingsRequest(BaseModel):
+    default_leverage: Optional[int] = None
+    default_margin_pct: Optional[float] = None
+
+@app.post("/save-settings")
+async def save_settings(req: SettingsRequest):
+    if req.default_leverage is not None:
+        sim_state["default_leverage"] = req.default_leverage
+    if req.default_margin_pct is not None:
+        sim_state["default_margin_pct"] = req.default_margin_pct
+    await push_state()
+    return {"ok": True}
+
+@app.post("/save-settings")
+async def save_settings(leverage: int = 5, margin_pct: float = 10):
+    sim_state["default_leverage"] = max(1, leverage)
+    sim_state["default_margin_pct"] = max(1, min(100, margin_pct))
+    await push_state()
+    return {"ok": True}
 
 @app.post("/deposit")
 async def deposit(req: DepositRequest):
