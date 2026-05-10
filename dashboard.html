@@ -173,8 +173,8 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     </div>
     <div class="card">
       <span class="s-lbl">Setting Default</span>
-      <div class="flex-row"><label>Leverage</label><input type="number" id="defLev" value="5" min="1" max="125" /><span>×</span></div>
-      <div class="flex-row"><label>Margin %</label><input type="number" id="defMarginPct" value="10" min="1" max="100" /><span>%</span></div>
+      <div class="flex-row"><label>Leverage</label><input type="number" id="defLev" value="5" min="1" max="125" onchange="saveSettings()" /><span>×</span></div>
+      <div class="flex-row"><label>Margin %</label><input type="number" id="defMarginPct" value="10" min="1" max="100" onchange="saveSettings()" /><span>%</span></div>
     </div>
     <div class="card">
       <span class="s-lbl">Max Posisi Terbuka</span>
@@ -352,8 +352,8 @@ function connectWS() {
 async function autoApprove(sig) {
   const alreadyOpen = (state.positions||[]).some(p => p.symbol === sig.symbol);
   if (alreadyOpen) { showToast(`${sig.symbol} sudah ada posisi, diabaikan`); return; }
-  const lev = parseInt(document.getElementById('defLev').value) || 5;
-  const mPct = parseFloat(document.getElementById('defMarginPct').value) / 100 || 0.1;
+  const lev = parseInt(document.getElementById('defLev').value) || state.default_leverage || 5;
+  const mPct = (parseFloat(document.getElementById('defMarginPct').value) || state.default_margin_pct || 10) / 100;
   const res = await api('POST', '/approve', { signal_id: sig.id, leverage: lev, margin_pct: mPct });
   if (res.ok) showToast(`AUTO: ${sig.symbol} ${sig.direction} dibuka`, 'ok');
 }
@@ -398,6 +398,12 @@ async function doSetBalance() {
   showToast(`Saldo diset ke $${amt.toFixed(2)}`, 'ok');
 }
 
+async function saveSettings() {
+  const lev = parseInt(document.getElementById('defLev').value) || 5;
+  const mPct = parseFloat(document.getElementById('defMarginPct').value) || 10;
+  await api('POST', '/save-settings', { default_leverage: lev, default_margin_pct: mPct });
+}
+
 async function setMaxPos() {
   const val = parseInt(document.getElementById('maxPosInput').value) || 0;
   await api('POST', `/set-max-positions?max_pos=${val}`);
@@ -436,7 +442,10 @@ function updateSidebar(){
   const m=(state.positions||[]).reduce((s,p)=>s+(p.margin||0),0);
   document.getElementById('marginEl').textContent='$'+m.toFixed(0);
   document.getElementById('openPosEl').textContent=(state.positions||[]).length;
-  // max_positions tidak di-sync ke input supaya user bisa edit bebas
+  // Sync settings dari server ke input
+  if (state.default_leverage !== undefined) document.getElementById('defLev').value = state.default_leverage;
+  if (state.default_margin_pct !== undefined) document.getElementById('defMarginPct').value = state.default_margin_pct;
+  if (state.max_positions !== undefined) document.getElementById('maxPosInput').value = state.max_positions;
 }
 
 function renderSignals(){
