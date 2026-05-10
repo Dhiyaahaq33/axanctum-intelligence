@@ -193,12 +193,15 @@ async def price_broadcaster():
         await asyncio.sleep(1)
         if sim_state["prices"] and connected_clients:
             pnl_list = []
+            # Hanya kirim harga koin yang ada di posisi terbuka (bukan semua 500+ koin)
+            relevant_prices = {}
             for pos in sim_state["positions"]:
                 price = sim_state["prices"].get(pos["symbol"], pos["entry"])
+                relevant_prices[pos["symbol"]] = price
                 pct = (price - pos["entry"]) / pos["entry"]
                 pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
-                pnl_list.append({"id": pos["id"], "current_price": price, "upnl": round(pnl, 4)})
-            await broadcast({"type": "prices", "prices": sim_state["prices"], "positions_pnl": pnl_list})
+                pnl_list.append({"id": pos["id"], "current_price": round(price, 6), "upnl": round(pnl, 4)})
+            await broadcast({"type": "prices", "prices": relevant_prices, "positions_pnl": pnl_list})
 
 async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] = None):
     pos = next((p for p in sim_state["positions"] if p["id"] == pos_id), None)
