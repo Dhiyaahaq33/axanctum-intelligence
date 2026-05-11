@@ -4,32 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <title>AXANCTUM INTELLIGENCE 911</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #f8f4ff; --bg2: #ffffff; --bg3: #f0eaff;
-  --border: #ddd0f5; --border2: #c4a8f0;
-  --text: #2d1f4a; --muted: #8b6fb5;
-  --teal: #0d9488; --pink: #db2777;
-  --purple: #7c3aed; --purple2: #6d28d9;
-  --gold: #d97706;
-  --card-glow: 0 1px 4px #ddd0f580, 0 4px 16px #c4a8f020;
+  --bg: #fdf8f5; --bg2: #ffffff; --bg3: #f7f2ee;
+  --border: #ede8e3; --border2: #d4c8c0;
+  --text: #2d2420; --muted: #9e8f87;
+  --green: #5a9e7a; --red: #c4788a;
+  --purple: #9b8ec4; --purple2: #7a6fb0;
+  --gold: #c49a4e; --rose: #e8a0b0;
+  --card-glow: 0 1px 3px #ede8e340, 0 4px 12px #2d242008;
 }
-body { background: var(--bg); color: var(--text); font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; min-height: 100vh; }
 
 .hdr {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 18px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--bg); z-index: 200;
+  position: sticky; top: 0; background: var(--bg); z-index: 200; border-bottom: 1px solid var(--border);
 }
 .logo-wrap { display: flex; flex-direction: column; }
-.logo { font-size: 15px; font-weight: bold; letter-spacing: 3px; background: linear-gradient(90deg, #7c3aed, #0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.logo { font-size: 16px; font-weight: 400; letter-spacing: 2px; font-family: 'DM Serif Display', serif; color: var(--text); -webkit-text-fill-color: var(--text); }
 .logo-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-top: 1px; }
 .hdr-right { display: flex; align-items: center; gap: 10px; }
 .status { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: #0d9488; animation: pulse 2s infinite; box-shadow: 0 0 8px #0d948860; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; box-shadow: 0 0 6px #5a9e7a60; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
 .btn-reset { background: transparent; border: 0.5px solid #4a3580; color: var(--muted); padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 10px; font-family: inherit; transition: all 0.2s; }
 .btn-reset:hover { border-color: var(--pink); color: var(--pink); }
@@ -39,18 +39,18 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Mono', 'Couri
 
 .sidebar { border-right: 0.5px solid var(--border); padding: 16px 14px; }
 .s-lbl { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
-.balance { font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #7c3aed, #0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 3px 0 6px; }
+.balance { font-size: 30px; font-weight: 400; font-family: 'DM Serif Display', serif; font-style: italic; color: var(--text); margin: 3px 0 6px; }
 .pnl-row { font-size: 11px; margin: 2px 0; display: flex; justify-content: space-between; }
 .divider { height: 0.5px; background: var(--border); margin: 12px 0; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
 .stat { background: var(--bg2); border-radius: 8px; padding: 8px 10px; border: 1px solid var(--border); box-shadow: var(--card-glow); }
-.stat .v { font-size: 14px; font-weight: bold; color: var(--purple); }
+.stat .v { font-size: 16px; font-weight: 400; font-family: 'DM Serif Display', serif; color: var(--text); }
 .stat .l { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
 .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 8px; box-shadow: var(--card-glow); }
 .card .s-lbl { display: block; margin-bottom: 6px; }
 input[type="number"] { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 11px; padding: 6px 8px; width: 100%; font-family: inherit; margin: 3px 0; outline: none; transition: border-color 0.2s; }
 input[type="number"]:focus { border-color: var(--purple); }
-.btn-grad { background: linear-gradient(90deg, #7c3aed, #0d9488); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
+.btn-grad { background: var(--purple2); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
 .btn-grad:hover { opacity: 0.85; }
 .flex-row { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
 .flex-row label { font-size: 9px; color: var(--muted); width: 55px; letter-spacing: 1px; }
@@ -62,65 +62,65 @@ input[type="number"]:focus { border-color: var(--purple); }
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle-track { position: absolute; inset: 0; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 20px; transition: 0.3s; }
-.toggle input:checked ~ .toggle-track { background: #ede9fe; border-color: var(--purple); }
-.toggle-dot { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: var(--muted); border-radius: 50%; transition: 0.3s; }
-.toggle input:checked ~ .toggle-dot { transform: translateX(16px); background: var(--purple); }
+.toggle input:checked ~ .toggle-track { background: #f0eef8; border-color: var(--purple); }
+.toggle-dot { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: var(--border2); border-radius: 50%; transition: 0.3s; }
+.toggle input:checked ~ .toggle-dot { transform: translateX(16px); background: var(--purple2); }
 
 .main { padding: 14px 16px; overflow-x: hidden; }
 .tabs { display: flex; gap: 3px; margin-bottom: 14px; border-bottom: 0.5px solid var(--border); padding-bottom: 8px; }
 .tab { font-size: 10px; padding: 5px 14px; border-radius: 20px; cursor: pointer; color: var(--muted); letter-spacing: 1px; border: 0.5px solid transparent; background: transparent; font-family: inherit; transition: all 0.2s; }
-.tab.active { background: #ede9fe; color: var(--purple); border-color: var(--border2); }
+.tab.active { background: #f0eef8; color: var(--purple); border-color: #c4b8e0; }
 .tab:hover:not(.active) { color: var(--text); }
-.notif { display: inline-block; background: var(--purple2); color: #fff; border-radius: 10px; font-size: 9px; padding: 1px 5px; margin-left: 3px; font-weight: bold; }
+.notif { display: inline-block; background: var(--rose); color: var(--text); border-radius: 10px; font-size: 9px; padding: 1px 5px; margin-left: 3px; font-weight: bold; }
 
 .chips { display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap; }
 .chip { font-size: 9px; padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--border2); color: var(--muted); cursor: pointer; background: transparent; font-family: inherit; letter-spacing: 1px; transition: all 0.2s; }
-.chip.active { background: #ede9fe; border-color: var(--purple); color: var(--purple); }
-.chip.long-c { border-color: #5eead4; color: var(--teal); }
-.chip.short-c { border-color: #f9a8d4; color: var(--pink); }
+.chip.active { background: #f0eef8; border-color: #c4b8e0; color: var(--purple); }
+.chip.long-c { border-color: #a8d4bc; color: var(--green); }
+.chip.short-c { border-color: #e0b0ba; color: var(--red); }
 
 .tbl-wrap { overflow-x: auto; border-radius: 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 480px; }
-th { color: var(--muted); font-weight: 400; padding: 6px 8px; text-align: left; border-bottom: 0.5px solid var(--border); letter-spacing: 1px; font-size: 9px; background: var(--bg2); }
+th { color: var(--muted); font-weight: 500; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); letter-spacing: 0.5px; font-size: 10px; background: var(--bg3); text-transform: uppercase; }
 td { padding: 8px 8px; border-bottom: 0.5px solid var(--bg3); vertical-align: middle; transition: background 0.15s; }
-tr:hover td { background: #f5f0ff; }
+tr:hover td { background: #fdf8f5; }
 .no-data { color: var(--border2); text-align: center; padding: 30px; font-size: 11px; }
 
 .badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; display: inline-block; font-weight: bold; letter-spacing: 1px; }
-.long-b { background: #ccfbf1; color: #0d9488; border: 0.5px solid #5eead4; }
-.short-b { background: #fce7f3; color: #db2777; border: 0.5px solid #f9a8d4; }
-.grade-a { background: #ede9fe; color: #7c3aed; border: 0.5px solid #c4b5fd; }
-.grade-b { background: #fef3c7; color: #d97706; border: 0.5px solid #fcd34d; }
+.long-b { background: #edf5f1; color: var(--green); border: 0.5px solid #a8d4bc; }
+.short-b { background: #faf0f2; color: var(--red); border: 0.5px solid #e0b0ba; }
+.grade-a { background: #f0eef8; color: var(--purple); border: 0.5px solid #c4b8e0; }
+.grade-b { background: #fdf6e8; color: var(--gold); border: 0.5px solid #dfc080; }
 
-.green { color: var(--teal); }
-.red { color: var(--pink); }
+.green { color: var(--green); }
+.red { color: var(--red); }
 .muted { color: var(--muted); }
 
 .close-btn { background: transparent; border: 0.5px solid var(--border2); color: var(--muted); border-radius: 4px; padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: inherit; transition: all 0.2s; letter-spacing: 1px; }
 .close-btn:hover { border-color: var(--pink); color: var(--pink); }
-.chart-btn { background: transparent; border: 0.5px solid var(--border2); color: var(--purple); border-radius: 4px; padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-right: 4px; }
-.chart-btn:hover { background: var(--bg3); border-color: var(--purple); }
+.chart-btn { background: transparent; border: 0.5px solid #c4b8e0; color: var(--purple); border-radius: 4px; padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: inherit; transition: all 0.2s; margin-right: 4px; }
+.chart-btn:hover { background: #f0eef8; border-color: #9b8ec4; }
 td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 10px; }
 
-#toast { position: fixed; bottom: 20px; right: 16px; background: var(--bg2); border: 0.5px solid var(--purple); color: var(--purple); padding: 10px 16px; border-radius: 10px; font-size: 11px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; max-width: 280px; }
+#toast { position: fixed; bottom: 20px; right: 16px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 10px; font-size: 11px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; max-width: 280px; }
 #toast.show { opacity: 1; }
-#toast.err { border-color: var(--pink); color: var(--pink); }
-#toast.ok { border-color: var(--teal); color: var(--teal); }
+#toast.err { border-color: #e0b0ba; color: var(--red); }
+#toast.ok { border-color: #a8d4bc; color: var(--green); }
 
-.modal-overlay { position: fixed; inset: 0; background: #2d1f4a80; backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay { position: fixed; inset: 0; background: #2d242060; backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
-.modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 16px; width: 100%; max-width: 820px; box-shadow: 0 8px 40px #9333ea20; overflow: hidden; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 820px; box-shadow: 0 8px 40px #2d242020; overflow: hidden; }
 .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
-.modal-title { font-size: 13px; font-weight: bold; color: var(--purple); letter-spacing: 2px; }
+.modal-title { font-size: 14px; font-weight: 400; font-family: 'DM Serif Display', serif; color: var(--text); letter-spacing: 1px; }
 .modal-close { background: transparent; border: 0.5px solid var(--border2); color: var(--muted); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 11px; }
 .modal-close:hover { border-color: var(--pink); color: var(--pink); }
 .modal-info { display: flex; gap: 16px; padding: 10px 16px; border-bottom: 0.5px solid var(--border); flex-wrap: wrap; }
 .modal-stat { display: flex; flex-direction: column; gap: 2px; }
 .modal-stat .ml { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
 .modal-stat .mv { font-size: 13px; font-weight: bold; }
-.chart-container { padding: 12px; height: 360px; position: relative; background: #faf8ff; }
+.chart-container { padding: 12px; height: 360px; position: relative; background: #fdf8f5; }
 .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
-.auto-badge { display: inline-block; background: #ede9fe; border: 0.5px solid var(--purple); color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
+.auto-badge { display: inline-block; background: #f0eef8; border: 0.5px solid #c4b8e0; color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -168,8 +168,8 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     <div class="card">
       <span class="s-lbl">Kelola Saldo</span>
       <input type="number" id="depositAmt" placeholder="Jumlah ($)" value="1000" />
-      <button onclick="doDeposit()" style="width:100%;margin-top:5px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#0d9488;color:#ffffff;font-weight:bold;letter-spacing:1px;">+ TAMBAH</button>
-      <button onclick="doWithdraw()" style="width:100%;margin-top:4px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#db2777;color:#ffffff;font-weight:bold;letter-spacing:1px;">− KURANGI</button>
+      <button onclick="doDeposit()" style="width:100%;margin-top:5px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:var(--green);color:#ffffff;font-weight:bold;letter-spacing:1px;">+ TAMBAH</button>
+      <button onclick="doWithdraw()" style="width:100%;margin-top:4px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:var(--red);color:#ffffff;font-weight:bold;letter-spacing:1px;">− KURANGI</button>
     </div>
     <div class="card">
       <span class="s-lbl">Setting Default</span>
@@ -182,7 +182,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
         <input type="number" id="maxPosInput" placeholder="0" min="0" max="100" style="width:60px;" onkeydown="if(event.key==='Enter')setMaxPos()" />
         <span style="font-size:9px;color:var(--muted);">pos (0 = ∞)</span>
       </div>
-      <button onclick="setMaxPos()" style="width:100%;margin-top:6px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#7c3aed;color:#ffffff;font-weight:bold;letter-spacing:1px;">SET MAX</button>
+      <button onclick="setMaxPos()" style="width:100%;margin-top:6px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:var(--purple);color:#ffffff;font-weight:bold;letter-spacing:1px;">SET MAX</button>
     </div>
 
     <div class="card">
@@ -243,20 +243,20 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 </div>
 
 <div id="loginOverlay" style="
-  position:fixed;inset:0;background:#f0eaff;z-index:9999;
+  position:fixed;inset:0;background:#fdf8f5;z-index:9999;
   display:flex;align-items:center;justify-content:center;
 ">
   <div style="
-    background:#ffffff;border:1px solid #c4a8f0;border-radius:16px;
+    background:#ffffff;border:1px solid #ede8e3;border-radius:16px;
     padding:36px 40px;width:320px;text-align:center;
     box-shadow:0 8px 40px #a855f720;
   ">
-    <div style="font-size:16px;font-weight:bold;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(90deg,#7c3aed,#0d9488);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AXANCTUM</div>
-    <div style="font-size:9px;color:#8b6fb5;letter-spacing:2px;margin-bottom:28px;">INTELLIGENCE 911</div>
+    <div style="font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:4px;font-family:'DM Serif Display',serif;font-style:italic;color:#2d2420;">Axanctum</div>
+    <div style="font-size:10px;color:#9e8f87;letter-spacing:3px;margin-bottom:28px;font-family:'DM Sans',sans-serif;">INTELLIGENCE 911</div>
     <div style="font-size:10px;color:#b8a8e8;letter-spacing:1px;margin-bottom:8px;text-align:left;">PASSWORD</div>
     <input id="pwInput" type="password" placeholder="Masukkan password..." style="
-      background:#f8f4ff;border:1px solid #ddd0f5;border-radius:8px;
-      color:#2d1f4a;font-size:13px;padding:10px 14px;width:100%;
+      background:#fdf8f5;border:1px solid #ede8e3;border-radius:8px;
+      color:#2d2420;font-size:13px;padding:10px 14px;width:100%;
       font-family:inherit;outline:none;margin-bottom:12px;
       transition:border-color 0.2s;
     "
@@ -264,9 +264,9 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     onfocus="this.style.borderColor='#a855f7'"
     onblur="this.style.borderColor='#3d3070'"
     />
-    <div id="pwError" style="color:#db2777;font-size:10px;margin-bottom:10px;min-height:16px;"></div>
+    <div id="pwError" style="color:#c4788a;font-size:10px;margin-bottom:10px;min-height:16px;"></div>
     <button onclick="doLogin()" style="
-      background:linear-gradient(90deg,#a855f7,#5eead4);color:#fff;
+      background:#9b8ec4;color:#fff;
       border:none;border-radius:8px;padding:10px;width:100%;
       font-family:inherit;font-size:11px;font-weight:bold;
       letter-spacing:2px;cursor:pointer;transition:opacity 0.2s;
@@ -573,7 +573,7 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
   const gap = cW/candles.length;
   const cw = Math.max(1.5, gap*0.7);
 
-  ctx.fillStyle='#faf8ff'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fdf8f5'; ctx.fillRect(0,0,W,H);
 
   // Hitung presisi label berdasarkan range harga
   const priceMag = Math.abs(entry);
@@ -590,9 +590,9 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
   const gridCount = 6;
   for(let i=0;i<=gridCount;i++){
     const y=PAD.t+(cH/gridCount)*i;
-    ctx.strokeStyle='#ddd0f580'; ctx.lineWidth=0.5;
+    ctx.strokeStyle='#ede8e340'; ctx.lineWidth=0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
-    ctx.fillStyle='#8b6fb5'; ctx.font='9px Courier New'; ctx.textAlign='left';
+    ctx.fillStyle='#9e8f87'; ctx.font='10px DM Sans, sans-serif'; ctx.textAlign='left';
     ctx.fillText(fmt(hi-(rng/gridCount)*i), W-PAD.r+4, y+3);
   }
 
@@ -604,22 +604,22 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
     ctx.setLineDash([]);
     // Background label
     const lbl = label+' '+fmt(price);
-    ctx.font='bold 9px Courier New';
+    ctx.font='500 9px DM Sans, sans-serif';
     const tw = ctx.measureText(lbl).width;
-    ctx.fillStyle='#ffffffee';
+    ctx.fillStyle='#fffffff5';
     ctx.fillRect(W-PAD.r+2, y-8, tw+8, 14);
     ctx.fillStyle=color;
     ctx.fillText(lbl, W-PAD.r+5, y+3);
   };
-  drawLine(tp,'#0d9488','TP');
-  drawLine(sl,'#db2777','SL');
-  drawLine(entry,'#7c3aed','EN');
+  drawLine(tp,'#5a9e7a','TP');
+  drawLine(sl,'#c4788a','SL');
+  drawLine(entry,'#9b8ec4','EN');
 
   // Candles
   candles.forEach((c,i) => {
     const x = PAD.l + i*gap + gap/2;
     const up = c.c >= c.o;
-    const col = up ? '#0d9488' : '#db2777';
+    const col = up ? '#5a9e7a' : '#c4788a';
     const bTop = toY(Math.max(c.o,c.c));
     const bBot = toY(Math.min(c.o,c.c));
     const bH = Math.max(1.5, bBot-bTop);
@@ -627,7 +627,7 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
     ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,toY(c.h)); ctx.lineTo(x,toY(c.l)); ctx.stroke();
     // Body
-    ctx.fillStyle=up?'#0d948830':'#db277730';
+    ctx.fillStyle=up?'#5a9e7a30':'#c4788a30';
     ctx.strokeStyle=col; ctx.lineWidth=0.8;
     ctx.fillRect(x-cw/2, bTop, cw, bH);
     ctx.strokeRect(x-cw/2, bTop, cw, bH);
@@ -637,12 +637,12 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
   const last = candles[candles.length-1];
   const ly = toY(last.c);
   const lastLabel = fmt(last.c);
-  ctx.font='bold 9px Courier New';
+  ctx.font='600 9px DM Sans, sans-serif';
   const lw = ctx.measureText(lastLabel).width + 10;
-  ctx.fillStyle='#ede9fe';
+  ctx.fillStyle='#f0eef8';
   ctx.fillRect(W-PAD.r+2, ly-8, lw, 16);
-  ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1; ctx.strokeRect(W-PAD.r+2, ly-8, lw, 16);
-  ctx.fillStyle='#4c1d95';
+  ctx.strokeStyle='#9b8ec4'; ctx.lineWidth=1; ctx.strokeRect(W-PAD.r+2, ly-8, lw, 16);
+  ctx.fillStyle='#2d2420';
   ctx.fillText(lastLabel, W-PAD.r+5, ly+3);
 }
 
