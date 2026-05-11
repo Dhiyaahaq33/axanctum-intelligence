@@ -9,27 +9,27 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #131020; --bg2: #1e1838; --bg3: #261f45;
-  --border: #3d3070; --border2: #6d55cc;
-  --text: #f5f0ff; --muted: #b8a8e8;
-  --teal: #5eead4; --pink: #f9a8d4;
-  --purple: #d8b4fe; --purple2: #a855f7;
-  --gold: #fde68a;
-  --card-glow: 0 0 0 0.5px #3d3070, 0 4px 20px #2d1f6020;
+  --bg: #f8f4ff; --bg2: #ffffff; --bg3: #f0eaff;
+  --border: #ddd0f5; --border2: #c4a8f0;
+  --text: #2d1f4a; --muted: #8b6fb5;
+  --teal: #0d9488; --pink: #db2777;
+  --purple: #7c3aed; --purple2: #6d28d9;
+  --gold: #d97706;
+  --card-glow: 0 1px 4px #ddd0f580, 0 4px 16px #c4a8f020;
 }
 body { background: var(--bg); color: var(--text); font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; min-height: 100vh; }
 
 .hdr {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 18px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--bg); z-index: 200; background: linear-gradient(180deg, #1a1430 0%, #131020 100%);
+  position: sticky; top: 0; background: var(--bg); z-index: 200;
 }
 .logo-wrap { display: flex; flex-direction: column; }
-.logo { font-size: 15px; font-weight: bold; letter-spacing: 3px; background: linear-gradient(90deg, #e879f9, #5eead4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.logo { font-size: 15px; font-weight: bold; letter-spacing: 3px; background: linear-gradient(90deg, #7c3aed, #0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .logo-sub { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-top: 1px; }
 .hdr-right { display: flex; align-items: center; gap: 10px; }
 .status { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: #5eead4; animation: pulse 2s infinite; box-shadow: 0 0 10px #5eead4; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #0d9488; animation: pulse 2s infinite; box-shadow: 0 0 8px #0d948860; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
 .btn-reset { background: transparent; border: 0.5px solid #4a3580; color: var(--muted); padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 10px; font-family: inherit; transition: all 0.2s; }
 .btn-reset:hover { border-color: var(--pink); color: var(--pink); }
@@ -39,18 +39,18 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Mono', 'Couri
 
 .sidebar { border-right: 0.5px solid var(--border); padding: 16px 14px; }
 .s-lbl { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
-.balance { font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #e879f9, #5eead4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 3px 0 6px; }
+.balance { font-size: 28px; font-weight: bold; background: linear-gradient(90deg, #7c3aed, #0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 3px 0 6px; }
 .pnl-row { font-size: 11px; margin: 2px 0; display: flex; justify-content: space-between; }
 .divider { height: 0.5px; background: var(--border); margin: 12px 0; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
 .stat { background: var(--bg2); border-radius: 8px; padding: 8px 10px; border: 1px solid var(--border); box-shadow: var(--card-glow); }
-.stat .v { font-size: 14px; font-weight: bold; color: #d8b4fe; }
+.stat .v { font-size: 14px; font-weight: bold; color: var(--purple); }
 .stat .l { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
 .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 8px; box-shadow: var(--card-glow); }
 .card .s-lbl { display: block; margin-bottom: 6px; }
 input[type="number"] { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 6px; color: var(--text); font-size: 11px; padding: 6px 8px; width: 100%; font-family: inherit; margin: 3px 0; outline: none; transition: border-color 0.2s; }
 input[type="number"]:focus { border-color: var(--purple); }
-.btn-grad { background: linear-gradient(90deg, #a855f7, #5eead4); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
+.btn-grad { background: linear-gradient(90deg, #7c3aed, #0d9488); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
 .btn-grad:hover { opacity: 0.85; }
 .flex-row { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
 .flex-row label { font-size: 9px; color: var(--muted); width: 55px; letter-spacing: 1px; }
@@ -62,35 +62,35 @@ input[type="number"]:focus { border-color: var(--purple); }
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle-track { position: absolute; inset: 0; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 20px; transition: 0.3s; }
-.toggle input:checked ~ .toggle-track { background: #1e1035; border-color: var(--purple); }
+.toggle input:checked ~ .toggle-track { background: #ede9fe; border-color: var(--purple); }
 .toggle-dot { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: var(--muted); border-radius: 50%; transition: 0.3s; }
 .toggle input:checked ~ .toggle-dot { transform: translateX(16px); background: var(--purple); }
 
 .main { padding: 14px 16px; overflow-x: hidden; }
 .tabs { display: flex; gap: 3px; margin-bottom: 14px; border-bottom: 0.5px solid var(--border); padding-bottom: 8px; }
 .tab { font-size: 10px; padding: 5px 14px; border-radius: 20px; cursor: pointer; color: var(--muted); letter-spacing: 1px; border: 0.5px solid transparent; background: transparent; font-family: inherit; transition: all 0.2s; }
-.tab.active { background: var(--bg2); color: var(--purple); border-color: var(--border2); }
+.tab.active { background: #ede9fe; color: var(--purple); border-color: var(--border2); }
 .tab:hover:not(.active) { color: var(--text); }
 .notif { display: inline-block; background: var(--purple2); color: #fff; border-radius: 10px; font-size: 9px; padding: 1px 5px; margin-left: 3px; font-weight: bold; }
 
 .chips { display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap; }
 .chip { font-size: 9px; padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--border2); color: var(--muted); cursor: pointer; background: transparent; font-family: inherit; letter-spacing: 1px; transition: all 0.2s; }
-.chip.active { background: #1e1035; border-color: var(--purple); color: var(--purple); }
-.chip.long-c { border-color: #1a3d35; color: var(--teal); }
-.chip.short-c { border-color: #3d1a2e; color: var(--pink); }
+.chip.active { background: #ede9fe; border-color: var(--purple); color: var(--purple); }
+.chip.long-c { border-color: #5eead4; color: var(--teal); }
+.chip.short-c { border-color: #f9a8d4; color: var(--pink); }
 
 .tbl-wrap { overflow-x: auto; border-radius: 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 480px; }
 th { color: var(--muted); font-weight: 400; padding: 6px 8px; text-align: left; border-bottom: 0.5px solid var(--border); letter-spacing: 1px; font-size: 9px; background: var(--bg2); }
 td { padding: 8px 8px; border-bottom: 0.5px solid var(--bg3); vertical-align: middle; transition: background 0.15s; }
-tr:hover td { background: #16102a55; }
+tr:hover td { background: #f5f0ff; }
 .no-data { color: var(--border2); text-align: center; padding: 30px; font-size: 11px; }
 
 .badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; display: inline-block; font-weight: bold; letter-spacing: 1px; }
-.long-b { background: #0d2e2a; color: var(--teal); border: 0.5px solid #1a4d3a; }
-.short-b { background: #2d0f1e; color: var(--pink); border: 0.5px solid #4d1a30; }
-.grade-a { background: #1e1035; color: var(--purple); border: 0.5px solid #3d2060; }
-.grade-b { background: #1a150a; color: var(--gold); border: 0.5px solid #3d2f0a; }
+.long-b { background: #ccfbf1; color: #0d9488; border: 0.5px solid #5eead4; }
+.short-b { background: #fce7f3; color: #db2777; border: 0.5px solid #f9a8d4; }
+.grade-a { background: #ede9fe; color: #7c3aed; border: 0.5px solid #c4b5fd; }
+.grade-b { background: #fef3c7; color: #d97706; border: 0.5px solid #fcd34d; }
 
 .green { color: var(--teal); }
 .red { color: var(--pink); }
@@ -107,7 +107,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 #toast.err { border-color: var(--pink); color: var(--pink); }
 #toast.ok { border-color: var(--teal); color: var(--teal); }
 
-.modal-overlay { position: fixed; inset: 0; background: #0e0b16cc; backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay { position: fixed; inset: 0; background: #2d1f4a80; backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 16px; width: 100%; max-width: 820px; box-shadow: 0 8px 40px #9333ea20; overflow: hidden; }
 .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 0.5px solid var(--border); }
@@ -118,9 +118,9 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 .modal-stat { display: flex; flex-direction: column; gap: 2px; }
 .modal-stat .ml { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
 .modal-stat .mv { font-size: 13px; font-weight: bold; }
-.chart-container { padding: 12px; height: 360px; position: relative; background: var(--bg); }
+.chart-container { padding: 12px; height: 360px; position: relative; background: #faf8ff; }
 .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
-.auto-badge { display: inline-block; background: #1e1035; border: 0.5px solid var(--purple); color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
+.auto-badge { display: inline-block; background: #ede9fe; border: 0.5px solid var(--purple); color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -168,8 +168,8 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     <div class="card">
       <span class="s-lbl">Kelola Saldo</span>
       <input type="number" id="depositAmt" placeholder="Jumlah ($)" value="1000" />
-      <button onclick="doDeposit()" style="width:100%;margin-top:5px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#2dd4bf;color:#0e0b16;font-weight:bold;letter-spacing:1px;">+ TAMBAH</button>
-      <button onclick="doWithdraw()" style="width:100%;margin-top:4px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#f472b6;color:#0e0b16;font-weight:bold;letter-spacing:1px;">− KURANGI</button>
+      <button onclick="doDeposit()" style="width:100%;margin-top:5px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#0d9488;color:#ffffff;font-weight:bold;letter-spacing:1px;">+ TAMBAH</button>
+      <button onclick="doWithdraw()" style="width:100%;margin-top:4px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#db2777;color:#ffffff;font-weight:bold;letter-spacing:1px;">− KURANGI</button>
     </div>
     <div class="card">
       <span class="s-lbl">Setting Default</span>
@@ -182,7 +182,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
         <input type="number" id="maxPosInput" placeholder="0" min="0" max="100" style="width:60px;" onkeydown="if(event.key==='Enter')setMaxPos()" />
         <span style="font-size:9px;color:var(--muted);">pos (0 = ∞)</span>
       </div>
-      <button onclick="setMaxPos()" style="width:100%;margin-top:6px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#a78bfa;color:#0e0b16;font-weight:bold;letter-spacing:1px;">SET MAX</button>
+      <button onclick="setMaxPos()" style="width:100%;margin-top:6px;padding:5px;font-size:10px;font-family:inherit;border:none;border-radius:5px;cursor:pointer;background:#7c3aed;color:#ffffff;font-weight:bold;letter-spacing:1px;">SET MAX</button>
     </div>
 
     <div class="card">
@@ -243,20 +243,20 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 </div>
 
 <div id="loginOverlay" style="
-  position:fixed;inset:0;background:#0e0b16;z-index:9999;
+  position:fixed;inset:0;background:#f0eaff;z-index:9999;
   display:flex;align-items:center;justify-content:center;
 ">
   <div style="
-    background:#1e1838;border:1px solid #6d55cc;border-radius:16px;
+    background:#ffffff;border:1px solid #c4a8f0;border-radius:16px;
     padding:36px 40px;width:320px;text-align:center;
     box-shadow:0 8px 40px #a855f720;
   ">
-    <div style="font-size:16px;font-weight:bold;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(90deg,#e879f9,#5eead4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AXANCTUM</div>
-    <div style="font-size:9px;color:#b8a8e8;letter-spacing:2px;margin-bottom:28px;">INTELLIGENCE 911</div>
+    <div style="font-size:16px;font-weight:bold;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(90deg,#7c3aed,#0d9488);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">AXANCTUM</div>
+    <div style="font-size:9px;color:#8b6fb5;letter-spacing:2px;margin-bottom:28px;">INTELLIGENCE 911</div>
     <div style="font-size:10px;color:#b8a8e8;letter-spacing:1px;margin-bottom:8px;text-align:left;">PASSWORD</div>
     <input id="pwInput" type="password" placeholder="Masukkan password..." style="
-      background:#131020;border:1px solid #3d3070;border-radius:8px;
-      color:#f5f0ff;font-size:13px;padding:10px 14px;width:100%;
+      background:#f8f4ff;border:1px solid #ddd0f5;border-radius:8px;
+      color:#2d1f4a;font-size:13px;padding:10px 14px;width:100%;
       font-family:inherit;outline:none;margin-bottom:12px;
       transition:border-color 0.2s;
     "
@@ -264,7 +264,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     onfocus="this.style.borderColor='#a855f7'"
     onblur="this.style.borderColor='#3d3070'"
     />
-    <div id="pwError" style="color:#f9a8d4;font-size:10px;margin-bottom:10px;min-height:16px;"></div>
+    <div id="pwError" style="color:#db2777;font-size:10px;margin-bottom:10px;min-height:16px;"></div>
     <button onclick="doLogin()" style="
       background:linear-gradient(90deg,#a855f7,#5eead4);color:#fff;
       border:none;border-radius:8px;padding:10px;width:100%;
@@ -441,7 +441,7 @@ function renderAll(){
 }
 
 function updateSidebar(){
-  const upnl = Object.values(positionsPnl).reduce((s,p)=>s+(p.upnl||0),0);
+  const upnl = Object.values(positionsPnl).reduce((s,p)=>s+(parseFloat(p.upnl)||0),0);
   document.getElementById('balanceEl').textContent = '$'+(state.balance+upnl).toFixed(2);
   const ue=document.getElementById('upnlEl'); ue.textContent=fmtPnl(upnl); ue.className=upnl>=0?'green':'red';
   const te=document.getElementById('tpnlEl'); te.textContent=fmtPnl(state.realized_pnl||0); te.className=(state.realized_pnl||0)>=0?'green':'red';
@@ -519,7 +519,7 @@ function renderHistory(){
     <td>${fmtPrice(h.entry)}</td><td>${fmtPrice(h.exit)}</td>
     <td class="${h.pnl>=0?'green':'red'}">${fmtPnl(h.pnl)}</td>
     <td style="color:${h.reason==='TP'?'var(--teal)':h.reason==='SL'?'var(--pink)':'var(--muted)'}">${h.reason}</td>
-    <td>${h.tp ? `<button class="chart-btn" onclick="openHistoryChart('${h.symbol}',${h.entry},${h.tp},${h.sl},'${h.direction}','${h.time}')">CHART</button>` : ''}</td>
+    <td>${h.tp ? `<button class="chart-btn" onclick="openHistoryChart('${h.symbol}',${h.entry},${h.tp},${h.sl},'${h.direction}','${h.time}',${h.id})">CHART</button>` : ''}</td>
   </tr>`).join('');
 }
 
@@ -543,7 +543,7 @@ async function openChart(symbol, entry, tp, sl, direction, posId) {
     <div class="modal-stat"><div class="ml">uPnL</div><div class="mv ${upnl>=0?'green':'red'}">${fmtPnl(upnl)}</div></div>`;
 
   try {
-    const res = await fetch(`${API}/klines/${symbol}?interval=15m&limit=80`);
+    const res = await fetch(`${API}/klines/${symbol}?interval=15m&limit=100`);
     const klines = await res.json();
     const candles = klines.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
 
@@ -562,49 +562,73 @@ async function openChart(symbol, entry, tp, sl, direction, posId) {
 }
 
 function drawCandles(ctx, W, H, candles, entry, tp, sl) {
-  const PAD = {t:20,r:68,b:28,l:8};
+  const PAD = {t:20,r:80,b:28,l:8};
   const cW = W-PAD.l-PAD.r, cH = H-PAD.t-PAD.b;
   const all = [...candles.flatMap(c=>[c.h,c.l]), entry, tp, sl];
-  const minP = Math.min(...all)*0.9985, maxP = Math.max(...all)*1.0015;
-  const rng = maxP - minP;
-  const toY = p => PAD.t + cH - ((p-minP)/rng)*cH;
+  const minP = Math.min(...all), maxP = Math.max(...all);
+  const margin = (maxP - minP) * 0.08;
+  const lo = minP - margin, hi = maxP + margin;
+  const rng = hi - lo;
+  const toY = p => PAD.t + cH - ((p-lo)/rng)*cH;
   const gap = cW/candles.length;
-  const cw = Math.max(2, gap*0.65);
+  const cw = Math.max(1.5, gap*0.7);
 
-  ctx.fillStyle='#0e0b16'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#faf8ff'; ctx.fillRect(0,0,W,H);
 
-  // Grid
-  for(let i=0;i<=5;i++){
-    const y=PAD.t+(cH/5)*i;
-    ctx.strokeStyle='#2e205028'; ctx.lineWidth=0.5;
+  // Hitung presisi label berdasarkan range harga
+  const priceMag = Math.abs(entry);
+  let decimals = 2;
+  if (priceMag < 0.001) decimals = 7;
+  else if (priceMag < 0.01) decimals = 6;
+  else if (priceMag < 0.1) decimals = 5;
+  else if (priceMag < 1) decimals = 5;
+  else if (priceMag < 10) decimals = 4;
+  else if (priceMag < 100) decimals = 3;
+  const fmt = p => parseFloat(p).toFixed(decimals);
+
+  // Grid dengan label harga presisi tinggi
+  const gridCount = 6;
+  for(let i=0;i<=gridCount;i++){
+    const y=PAD.t+(cH/gridCount)*i;
+    ctx.strokeStyle='#ddd0f580'; ctx.lineWidth=0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
-    ctx.fillStyle='#a090cc70'; ctx.font='9px Courier New'; ctx.textAlign='left';
-    ctx.fillText(fmtPrice(maxP-(rng/5)*i), W-PAD.r+4, y+3);
+    ctx.fillStyle='#8b6fb5'; ctx.font='9px Courier New'; ctx.textAlign='left';
+    ctx.fillText(fmt(hi-(rng/gridCount)*i), W-PAD.r+4, y+3);
   }
 
-  // Lines
+  // Garis TP, SL, Entry
   const drawLine = (price, color, label) => {
     const y = toY(price);
-    ctx.strokeStyle=color+'90'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+    ctx.strokeStyle=color+'aa'; ctx.lineWidth=1.2; ctx.setLineDash([6,3]);
     ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle=color; ctx.font='bold 9px Courier New';
-    ctx.fillText(label+' '+fmtPrice(price), W-PAD.r+4, y+3);
+    // Background label
+    const lbl = label+' '+fmt(price);
+    ctx.font='bold 9px Courier New';
+    const tw = ctx.measureText(lbl).width;
+    ctx.fillStyle='#ffffffee';
+    ctx.fillRect(W-PAD.r+2, y-8, tw+8, 14);
+    ctx.fillStyle=color;
+    ctx.fillText(lbl, W-PAD.r+5, y+3);
   };
-  drawLine(tp,'#2dd4bf','TP');
-  drawLine(sl,'#f472b6','SL');
-  drawLine(entry,'#c084fc','ENTRY');
+  drawLine(tp,'#0d9488','TP');
+  drawLine(sl,'#db2777','SL');
+  drawLine(entry,'#7c3aed','EN');
 
   // Candles
   candles.forEach((c,i) => {
     const x = PAD.l + i*gap + gap/2;
     const up = c.c >= c.o;
-    const col = up ? '#2dd4bf' : '#f472b6';
-    const bTop = toY(Math.max(c.o,c.c)), bBot = toY(Math.min(c.o,c.c));
-    const bH = Math.max(1, bBot-bTop);
+    const col = up ? '#0d9488' : '#db2777';
+    const bTop = toY(Math.max(c.o,c.c));
+    const bBot = toY(Math.min(c.o,c.c));
+    const bH = Math.max(1.5, bBot-bTop);
+    // Wick
     ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,toY(c.h)); ctx.lineTo(x,toY(c.l)); ctx.stroke();
-    ctx.fillStyle=up?'#2dd4bf35':'#f472b635';
+    // Body
+    ctx.fillStyle=up?'#0d948830':'#db277730';
+    ctx.strokeStyle=col; ctx.lineWidth=0.8;
     ctx.fillRect(x-cw/2, bTop, cw, bH);
     ctx.strokeRect(x-cw/2, bTop, cw, bH);
   });
@@ -612,10 +636,14 @@ function drawCandles(ctx, W, H, candles, entry, tp, sl) {
   // Last price box
   const last = candles[candles.length-1];
   const ly = toY(last.c);
-  ctx.fillStyle='#1c1535'; ctx.fillRect(W-PAD.r+2, ly-8, 60, 16);
-  ctx.strokeStyle='#c084fc'; ctx.lineWidth=0.5; ctx.strokeRect(W-PAD.r+2, ly-8, 60, 16);
-  ctx.fillStyle='#c084fc'; ctx.font='bold 9px Courier New';
-  ctx.fillText(fmtPrice(last.c), W-PAD.r+5, ly+3);
+  const lastLabel = fmt(last.c);
+  ctx.font='bold 9px Courier New';
+  const lw = ctx.measureText(lastLabel).width + 10;
+  ctx.fillStyle='#ede9fe';
+  ctx.fillRect(W-PAD.r+2, ly-8, lw, 16);
+  ctx.strokeStyle='#7c3aed'; ctx.lineWidth=1; ctx.strokeRect(W-PAD.r+2, ly-8, lw, 16);
+  ctx.fillStyle='#4c1d95';
+  ctx.fillText(lastLabel, W-PAD.r+5, ly+3);
 }
 
 function updatePnlInline() {
@@ -637,7 +665,7 @@ function updatePnlInline() {
   });
 }
 
-async function openHistoryChart(symbol, entry, tp, sl, direction, closedAt) {
+async function openHistoryChart(symbol, entry, tp, sl, direction, closedAt, closedTs) {
   document.getElementById('chartModal').classList.add('open');
   document.getElementById('chartTitle').textContent = symbol + ' — 15M (CLOSED)';
   document.getElementById('chartLoading').style.display = 'flex';
@@ -651,7 +679,9 @@ async function openHistoryChart(symbol, entry, tp, sl, direction, closedAt) {
     '<div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--pink)">'+fmtPrice(sl)+'</div></div>' +
     '<div class="modal-stat"><div class="ml">CLOSED</div><div class="mv muted">'+closedAt+'</div></div>';
   try {
-    const res = await fetch(API + '/klines/' + symbol + '?interval=15m&limit=80');
+    // Gunakan closedTs (unix ms) + buffer 15 candle untuk lihat area sekitar close
+    const endParam = closedTs ? '&endTime=' + (parseInt(closedTs) + 15*60*1000*15) : '';
+    const res = await fetch(API + '/klines/' + symbol + '?interval=15m&limit=100' + endParam);
     const klines = await res.json();
     const candles = klines.map(function(k){return {o:+k[1],h:+k[2],l:+k[3],c:+k[4]};});
     const canvas = document.getElementById('chartCanvas');
