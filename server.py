@@ -446,17 +446,28 @@ async def websocket_endpoint(websocket: WebSocket):
             connected_clients.remove(websocket)
 
 @app.get("/klines/{symbol}")
-async def get_klines(symbol: str, interval: str = "15m", limit: int = 80):
-    """Proxy endpoint untuk chart — ambil dari Binance Futures supaya tidak kena block ISP."""
+async def get_klines(symbol: str, interval: str = "15m", limit: int = 100, endTime: Optional[int] = None):
+    """
+    Proxy chart — coba Futures dulu, fallback ke Spot.
+    endTime: unix timestamp ms, untuk chart history yang akurat.
+    """
     import aiohttp
-    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as resp:
-                data = await resp.json()
-                return data
-    except Exception as e:
-        return {"error": str(e)}
+    end_param = f"&endTime={endTime}" if endTime else ""
+    urls = [
+        f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}{end_param}",
+        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}{end_param}",
+    ]
+    async with aiohttp.ClientSession() as session:
+        for url in urls:
+            try:
+                async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if isinstance(data, list) and len(data) > 0:
+                            return data
+            except Exception:
+                continue
+    return {"error": "Tidak bisa fetch data chart"}
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
