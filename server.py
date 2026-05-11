@@ -164,7 +164,6 @@ async def binance_price_feed():
         try:
             async with ws_lib.connect(url, ping_interval=20) as ws:
                 print("[Binance] Terhubung — memantau SEMUA symbol")
-                _logged_sample = False
                 async for raw in ws:
                     tickers = json.loads(raw)
                     if isinstance(tickers, list):
@@ -183,13 +182,22 @@ async def check_tp_sl():
     for pos in sim_state["positions"]:
         price = sim_state["prices"].get(pos["symbol"])
         if not price:
+            print(f"[WARN] check_tp_sl: harga {pos['symbol']} tidak ada di cache")
             continue
         if pos["direction"] == "LONG":
-            if price >= pos["tp"]:   to_close.append((pos["id"], "TP", price))
-            elif price <= pos["sl"]: to_close.append((pos["id"], "SL", price))
+            if price >= pos["tp"]:
+                print(f"[TP] {pos['symbol']} LONG hit TP: price={price} tp={pos['tp']}")
+                to_close.append((pos["id"], "TP", price))
+            elif price <= pos["sl"]:
+                print(f"[SL] {pos['symbol']} LONG hit SL: price={price} sl={pos['sl']}")
+                to_close.append((pos["id"], "SL", price))
         else:
-            if price <= pos["tp"]:   to_close.append((pos["id"], "TP", price))
-            elif price >= pos["sl"]: to_close.append((pos["id"], "SL", price))
+            if price <= pos["tp"]:
+                print(f"[TP] {pos['symbol']} SHORT hit TP: price={price} tp={pos['tp']}")
+                to_close.append((pos["id"], "TP", price))
+            elif price >= pos["sl"]:
+                print(f"[SL] {pos['symbol']} SHORT hit SL: price={price} sl={pos['sl']}")
+                to_close.append((pos["id"], "SL", price))
     for pos_id, reason, exit_price in to_close:
         await _close_position(pos_id, reason, exit_price)
     if to_close:
