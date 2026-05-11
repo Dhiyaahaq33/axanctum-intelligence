@@ -186,19 +186,22 @@ async def check_tp_sl():
         if not price:
             print(f"[WARN] check_tp_sl: harga {pos['symbol']} tidak ada di cache")
             continue
+        tp = round(float(pos["tp"]), 8)
+        sl = round(float(pos["sl"]), 8)
+        cur = round(float(price), 8)
         if pos["direction"] == "LONG":
-            if price >= pos["tp"]:
-                print(f"[TP] {pos['symbol']} LONG hit TP: price={price} tp={pos['tp']}")
+            if cur >= tp:
+                print(f"[TP] {pos['symbol']} LONG hit TP: price={cur} tp={tp}")
                 to_close.append((pos["id"], "TP", price))
-            elif price <= pos["sl"]:
-                print(f"[SL] {pos['symbol']} LONG hit SL: price={price} sl={pos['sl']}")
+            elif cur <= sl:
+                print(f"[SL] {pos['symbol']} LONG hit SL: price={cur} sl={sl}")
                 to_close.append((pos["id"], "SL", price))
         else:
-            if price <= pos["tp"]:
-                print(f"[TP] {pos['symbol']} SHORT hit TP: price={price} tp={pos['tp']}")
+            if cur <= tp:
+                print(f"[TP] {pos['symbol']} SHORT hit TP: price={cur} tp={tp}")
                 to_close.append((pos["id"], "TP", price))
-            elif price >= pos["sl"]:
-                print(f"[SL] {pos['symbol']} SHORT hit SL: price={price} sl={pos['sl']}")
+            elif cur >= sl:
+                print(f"[SL] {pos['symbol']} SHORT hit SL: price={cur} sl={sl}")
                 to_close.append((pos["id"], "SL", price))
     for pos_id, reason, exit_price in to_close:
         await _close_position(pos_id, reason, exit_price)
