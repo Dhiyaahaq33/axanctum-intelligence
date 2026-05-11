@@ -442,10 +442,14 @@ function updateSidebar(){
   const m=(state.positions||[]).reduce((s,p)=>s+(p.margin||0),0);
   document.getElementById('marginEl').textContent='$'+m.toFixed(0);
   document.getElementById('openPosEl').textContent=(state.positions||[]).length;
-  // Sync settings dari server ke input
-  if (state.default_leverage !== undefined) document.getElementById('defLev').value = state.default_leverage;
-  if (state.default_margin_pct !== undefined) document.getElementById('defMarginPct').value = state.default_margin_pct;
-  if (state.max_positions !== undefined) document.getElementById('maxPosInput').value = state.max_positions;
+  // Sync settings dari server ke input (hanya kalau tidak sedang difokus)
+  const active = document.activeElement;
+  const levEl = document.getElementById('defLev');
+  const mPctEl = document.getElementById('defMarginPct');
+  const maxEl = document.getElementById('maxPosInput');
+  if (state.default_leverage !== undefined && active !== levEl) levEl.value = state.default_leverage;
+  if (state.default_margin_pct !== undefined && active !== mPctEl) mPctEl.value = state.default_margin_pct;
+  if (state.max_positions !== undefined && active !== maxEl) maxEl.value = state.max_positions;
 }
 
 function renderSignals(){
