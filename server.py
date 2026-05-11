@@ -7,7 +7,9 @@ import asyncio
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+TZ_WIB = timezone(timedelta(hours=7))  # UTC+7
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -234,13 +236,17 @@ async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] 
     else:        sim_state["losses"] += 1
     entry = {
         "id":        int(time.time() * 1000),
-        "time":      datetime.now().strftime("%d/%m %H:%M"),
+        "time":      datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
         "symbol":    pos["symbol"],
         "direction": pos["direction"],
         "entry":     pos["entry"],
         "exit":      round(price, 6),
         "pnl":       round(pnl, 4),
         "reason":    reason,
+        "opened_at": pos.get("opened_at", ""),
+        "tp":        pos["tp"],
+        "sl":        pos["sl"],
+        "leverage":  pos["leverage"],
     }
     sim_state["history"].append(entry)
     sim_state["positions"] = [p for p in sim_state["positions"] if p["id"] != pos_id]
@@ -300,7 +306,7 @@ async def receive_signal(sig: Signal):
         "direction": sig.direction.upper(), "entry": sig.entry,
         "tp": sig.tp, "sl": sig.sl, "grade": sig.grade,
         "leverage": sig.leverage, "source": sig.source,
-        "time": datetime.now().strftime("%H:%M:%S"),
+        "time": datetime.now(TZ_WIB).strftime("%H:%M:%S"),
     }
     signal_id_counter += 1
     sim_state["signals"].append(signal)
@@ -340,7 +346,7 @@ async def approve_signal(req: ApproveRequest):
         "tp": req.tp or sig["tp"], "sl": req.sl or sig["sl"],
         "leverage": req.leverage or sig["leverage"],
         "margin": round(margin, 4),
-        "opened_at": datetime.now().strftime("%d/%m %H:%M"),
+        "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
     }
         sim_state["positions"].append(pos)
         sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
