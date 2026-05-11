@@ -422,7 +422,16 @@ async function doReset() {
 }
 
 function fmt(n,d=2){return parseFloat(n).toFixed(d);}
-function fmtPrice(n){return n<1?parseFloat(n).toFixed(5):parseFloat(n).toLocaleString(undefined,{maximumFractionDigits:2});}
+function fmtPrice(n){
+  n = parseFloat(n);
+  if (n === 0) return '0';
+  if (n < 0.0001) return n.toFixed(8);
+  if (n < 0.01) return n.toFixed(6);
+  if (n < 1) return n.toFixed(5);
+  if (n < 10) return n.toFixed(4);
+  if (n < 1000) return n.toFixed(3);
+  return n.toLocaleString(undefined,{maximumFractionDigits:2});
+}
 function fmtPnl(n){return(n>=0?'+$':'-$')+Math.abs(n).toFixed(2);}
 
 function renderAll(){
