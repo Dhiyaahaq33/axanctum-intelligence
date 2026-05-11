@@ -234,7 +234,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     <div id="tab-history" style="display:none;">
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>WAKTU</th><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>EXIT</th><th>PnL</th><th>REASON</th></tr></thead>
+          <thead><tr><th>WAKTU</th><th>SYMBOL</th><th>DIR</th><th>ENTRY</th><th>EXIT</th><th>PnL</th><th>REASON</th><th></th></tr></thead>
           <tbody id="histBody"></tbody>
         </table>
       </div>
@@ -510,6 +510,7 @@ function renderHistory(){
     <td>${fmtPrice(h.entry)}</td><td>${fmtPrice(h.exit)}</td>
     <td class="${h.pnl>=0?'green':'red'}">${fmtPnl(h.pnl)}</td>
     <td style="color:${h.reason==='TP'?'var(--teal)':h.reason==='SL'?'var(--pink)':'var(--muted)'}">${h.reason}</td>
+    <td>${h.tp ? `<button class="chart-btn" onclick="openHistoryChart('${h.symbol}',${h.entry},${h.tp},${h.sl},'${h.direction}','${h.time}')">CHART</button>` : ''}</td>
   </tr>`).join('');
 }
 
@@ -625,6 +626,35 @@ function updatePnlInline() {
     const priceCell = row.querySelector('.cur-price');
     if (priceCell) priceCell.textContent = fmtPrice(cur);
   });
+}
+
+async function openHistoryChart(symbol, entry, tp, sl, direction, closedAt) {
+  document.getElementById('chartModal').classList.add('open');
+  document.getElementById('chartTitle').textContent = symbol + ' — 15M (CLOSED)';
+  document.getElementById('chartLoading').style.display = 'flex';
+  document.getElementById('chartCanvas').style.display = 'none';
+  const color = direction==='LONG' ? 'var(--teal)' : 'var(--pink)';
+  const arrow = direction==='LONG' ? '▲' : '▼';
+  document.getElementById('chartInfo').innerHTML =
+    '<div class="modal-stat"><div class="ml">DIR</div><div class="mv" style="color:'+color+'">'+arrow+' '+direction+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">ENTRY</div><div class="mv">'+fmtPrice(entry)+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">TP</div><div class="mv" style="color:var(--teal)">'+fmtPrice(tp)+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--pink)">'+fmtPrice(sl)+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">CLOSED</div><div class="mv muted">'+closedAt+'</div></div>';
+  try {
+    const res = await fetch(API + '/klines/' + symbol + '?interval=15m&limit=80');
+    const klines = await res.json();
+    const candles = klines.map(function(k){return {o:+k[1],h:+k[2],l:+k[3],c:+k[4]};});
+    const canvas = document.getElementById('chartCanvas');
+    const container = canvas.parentElement;
+    canvas.width = container.offsetWidth - 24;
+    canvas.height = container.offsetHeight - 24;
+    document.getElementById('chartLoading').style.display = 'none';
+    canvas.style.display = 'block';
+    drawCandles(canvas.getContext('2d'), canvas.width, canvas.height, candles, entry, tp, sl);
+  } catch(e) {
+    document.getElementById('chartLoading').textContent = 'Gagal memuat chart';
+  }
 }
 
 function closeChart() { document.getElementById('chartModal').classList.remove('open'); }
