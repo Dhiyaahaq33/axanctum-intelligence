@@ -164,6 +164,7 @@ async def binance_price_feed():
         try:
             async with ws_lib.connect(url, ping_interval=20) as ws:
                 print("[Binance] Terhubung — memantau SEMUA symbol")
+                _logged_sample = False
                 async for raw in ws:
                     tickers = json.loads(raw)
                     if isinstance(tickers, list):
