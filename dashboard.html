@@ -481,7 +481,6 @@ function renderSignals(){
       <td><span class="badge ${s.direction==='LONG'?'long-b':'short-b'}">${s.direction==='LONG'?'▲':'▼'} ${s.direction}</span></td>
       <td>${fmtPrice(s.entry)}</td><td class="green">${fmtPrice(s.tp)}</td><td class="red">${fmtPrice(s.sl)}</td>
       <td><span class="badge ${s.grade==='A+'?'grade-a':'grade-b'}">${s.grade}</span></td>
-      <td>${s.leverage}×</td><td class="muted">${s.time||''}</td>
       <td>${isOpen?'<span class="muted" style="font-size:9px">SUDAH BUKA</span>':autoOpen?'<span class="auto-badge">AUTO</span>':`<button class="chart-btn" onclick="approveManual(${s.id})">OPEN</button>`}</td>
     </tr>`;
   }).join('');
