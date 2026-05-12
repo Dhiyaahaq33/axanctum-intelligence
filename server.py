@@ -249,7 +249,6 @@ async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] 
         "opened_at": pos.get("opened_at", ""),
         "tp":        pos["tp"],
         "sl":        pos["sl"],
-        "leverage":  pos["leverage"],
     }
     sim_state["history"].append(entry)
     sim_state["positions"] = [p for p in sim_state["positions"] if p["id"] != pos_id]
