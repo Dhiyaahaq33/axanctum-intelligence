@@ -529,37 +529,158 @@ function renderHistory(){
 async function openChart(symbol, entry, tp, sl, direction, posId) {
   document.getElementById('chartModal').classList.add('open');
   document.getElementById('chartTitle').textContent = `${symbol} — 15M`;
-  document.getElementById('chartLoading').style.display = 'flex';
-  document.getElementById('chartCanvas').style.display = 'none';
+
+  const loadingEl = document.getElementById('chartLoading');
+  const tvEl = document.getElementById('tvChart');
+
+  loadingEl.style.display = 'flex';
+  tvEl.style.display = 'none';
+  tvEl.innerHTML = '';
 
   const live = positionsPnl[String(posId)];
   const upnl = live ? live.upnl : 0;
   const cur = live ? live.current_price : (state.prices[symbol] || entry);
 
   document.getElementById('chartInfo').innerHTML = `
-    <div class="modal-stat"><div class="ml">DIR</div><div class="mv" style="color:${direction==='LONG'?'var(--teal)':'var(--pink)'}">${direction==='LONG'?'▲':'▼'} ${direction}</div></div>
-    <div class="modal-stat"><div class="ml">ENTRY</div><div class="mv">${fmtPrice(entry)}</div></div>
-    <div class="modal-stat"><div class="ml">HARGA</div><div class="mv">${fmtPrice(cur)}</div></div>
-    <div class="modal-stat"><div class="ml">TP</div><div class="mv" style="color:var(--teal)">${fmtPrice(tp)}</div></div>
-    <div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--pink)">${fmtPrice(sl)}</div></div>
-    <div class="modal-stat"><div class="ml">uPnL</div><div class="mv ${upnl>=0?'green':'red'}">${fmtPnl(upnl)}</div></div>`;
+    <div class="modal-stat">
+      <div class="ml">DIR</div>
+      <div class="mv" style="color:${direction==='LONG'?'var(--green)':'var(--red)'}">
+        ${direction==='LONG'?'▲':'▼'} ${direction}
+      </div>
+    </div>
+
+    <div class="modal-stat">
+      <div class="ml">ENTRY</div>
+      <div class="mv">${fmtPrice(entry)}</div>
+    </div>
+
+    <div class="modal-stat">
+      <div class="ml">PRICE</div>
+      <div class="mv">${fmtPrice(cur)}</div>
+    </div>
+
+    <div class="modal-stat">
+      <div class="ml">TP</div>
+      <div class="mv green">${fmtPrice(tp)}</div>
+    </div>
+
+    <div class="modal-stat">
+      <div class="ml">SL</div>
+      <div class="mv red">${fmtPrice(sl)}</div>
+    </div>
+
+    <div class="modal-stat">
+      <div class="ml">uPnL</div>
+      <div class="mv ${upnl>=0?'green':'red'}">
+        ${fmtPnl(upnl)}
+      </div>
+    </div>
+  `;
 
   try {
-    const res = await fetch(`${API}/klines/${symbol}?interval=15m&limit=100`);
+    const res = await fetch(
+      `${API}/klines/${symbol}?interval=15m&limit=100`
+    );
+
     const klines = await res.json();
-    const candles = klines.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4]}));
 
-    const canvas = document.getElementById('chartCanvas');
-    const container = canvas.parentElement;
-    canvas.width = container.offsetWidth - 24;
-    canvas.height = container.offsetHeight - 24;
+    if (!Array.isArray(klines) || !klines.length) {
+      throw new Error('No chart data');
+    }
 
-    document.getElementById('chartLoading').style.display = 'none';
-    canvas.style.display = 'block';
+    const candles = klines.map(k => ({
+      time: Math.floor(+k[0] / 1000),
+      open: +k[1],
+      high: +k[2],
+      low: +k[3],
+      close: +k[4]
+    }));
 
-    drawCandles(canvas.getContext('2d'), canvas.width, canvas.height, candles, entry, tp, sl);
-  } catch(e) {
-    document.getElementById('chartLoading').textContent = 'Gagal memuat chart';
+    loadingEl.style.display = 'none';
+    tvEl.style.display = 'block';
+
+    if (window.tvChartInstance) {
+      window.tvChartInstance.remove();
+      window.tvChartInstance = null;
+    }
+
+    const container = document.getElementById('chartContainer');
+
+    window.tvChartInstance = LightweightCharts.createChart(tvEl, {
+      width: container.offsetWidth,
+      height: container.offsetHeight - 20,
+
+      layout: {
+        background: { color: '#fdf8f5' },
+        textColor: '#9e8f87',
+        fontFamily: 'DM Sans, sans-serif',
+        fontSize: 11,
+      },
+
+      grid: {
+        vertLines: { color: '#ede8e340' },
+        horzLines: { color: '#ede8e340' },
+      },
+
+      rightPriceScale: {
+        borderColor: '#ede8e3',
+      },
+
+      timeScale: {
+        borderColor: '#ede8e3',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
+
+    const candleSeries = window.tvChartInstance.addCandlestickSeries({
+      upColor: '#5a9e7a',
+      downColor: '#c4788a',
+
+      borderUpColor: '#5a9e7a',
+      borderDownColor: '#c4788a',
+
+      wickUpColor: '#5a9e7a',
+      wickDownColor: '#c4788a',
+    });
+
+    candleSeries.setData(candles);
+
+    // ENTRY
+    candleSeries.createPriceLine({
+      price: entry,
+      color: '#9b8ec4',
+      lineWidth: 1.5,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: 'ENTRY',
+    });
+
+    // TP
+    candleSeries.createPriceLine({
+      price: tp,
+      color: '#5a9e7a',
+      lineWidth: 1.5,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: 'TP',
+    });
+
+    // SL
+    candleSeries.createPriceLine({
+      price: sl,
+      color: '#c4788a',
+      lineWidth: 1.5,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: 'SL',
+    });
+
+    window.tvChartInstance.timeScale().fitContent();
+
+  } catch (e) {
+    loadingEl.textContent = 'Gagal memuat chart';
+    console.error(e);
   }
 }
 
