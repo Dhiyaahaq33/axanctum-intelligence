@@ -39,7 +39,7 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 
 .sidebar { border-right: 0.5px solid var(--border); padding: 16px 14px; }
 .s-lbl { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
-.balance{font-size:32px;font-weight:700;font-family:'DM Sans',sans-serif;letter-spacing:-1.5px;background:linear-gradient(180deg,#8a7ff0 0%,#4b4a7a 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:3px 0 6px;text-shadow:0 1px 2px #00000010;}
+.balance { font-size: 30px; font-weight: 400; font-family: 'DM Serif Display', serif; font-style: italic; color: var(--text); margin: 3px 0 6px; }
 .pnl-row { font-size: 11px; margin: 2px 0; display: flex; justify-content: space-between; }
 .divider { height: 0.5px; background: var(--border); margin: 12px 0; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
@@ -122,6 +122,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
 .auto-badge { display: inline-block; background: #f0eef8; border: 0.5px solid #c4b8e0; color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
 </style>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
@@ -134,9 +135,9 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
       <button class="modal-close" onclick="closeChart()">✕ TUTUP</button>
     </div>
     <div class="modal-info" id="chartInfo"></div>
-    <div class="chart-container">
+    <div class="chart-container" id="chartContainer">
       <div class="chart-loading" id="chartLoading">Memuat data...</div>
-      <canvas id="chartCanvas" style="display:none;"></canvas>
+      <div id="tvChart" style="display:none;width:100%;height:100%;"></div>
     </div>
   </div>
 </div>
@@ -332,7 +333,7 @@ function connectWS() {
     } else if (data.type === 'prices') {
       state.prices = data.prices;
       positionsPnl = {};
-      (data.positions_pnl||[]).forEach(p => { positionsPnl[p.id] = p; });
+      (data.positions_pnl||[]).forEach(p => { positionsPnl[String(p.id)] = p; });
       updateSidebar();
       if (document.getElementById('tab-positions').style.display !== 'none') {
         // Jangan re-render kalau user sedang edit input TP/SL
@@ -530,7 +531,7 @@ async function openChart(symbol, entry, tp, sl, direction, posId) {
   document.getElementById('chartLoading').style.display = 'flex';
   document.getElementById('chartCanvas').style.display = 'none';
 
-  const live = positionsPnl[posId];
+  const live = positionsPnl[String(posId)];
   const upnl = live ? live.upnl : 0;
   const cur = live ? live.current_price : (state.prices[symbol] || entry);
 
@@ -651,7 +652,7 @@ function updatePnlInline() {
   (state.positions||[]).forEach(p => {
     const row = document.querySelector(`[data-posid="${p.id}"]`);
     if (!row) return;
-    const live = positionsPnl[p.id];
+    const live = positionsPnl[String(p.id)];
     const upnl = live ? live.upnl : 0;
     const pct = p.margin > 0 ? (upnl / (p.margin * p.leverage) * 100) : 0;
     const pnlCell = row.querySelector('.pnl-cell');
@@ -669,34 +670,64 @@ async function openHistoryChart(symbol, entry, tp, sl, direction, closedAt, clos
   document.getElementById('chartModal').classList.add('open');
   document.getElementById('chartTitle').textContent = symbol + ' — 15M (CLOSED)';
   document.getElementById('chartLoading').style.display = 'flex';
-  document.getElementById('chartCanvas').style.display = 'none';
-  const color = direction==='LONG' ? 'var(--teal)' : 'var(--pink)';
+  document.getElementById('tvChart').style.display = 'none';
+
+  const color = direction==='LONG' ? 'var(--green)' : 'var(--red)';
   const arrow = direction==='LONG' ? '▲' : '▼';
   document.getElementById('chartInfo').innerHTML =
     '<div class="modal-stat"><div class="ml">DIR</div><div class="mv" style="color:'+color+'">'+arrow+' '+direction+'</div></div>' +
     '<div class="modal-stat"><div class="ml">ENTRY</div><div class="mv">'+fmtPrice(entry)+'</div></div>' +
-    '<div class="modal-stat"><div class="ml">TP</div><div class="mv" style="color:var(--teal)">'+fmtPrice(tp)+'</div></div>' +
-    '<div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--pink)">'+fmtPrice(sl)+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">TP</div><div class="mv" style="color:var(--green)">'+fmtPrice(tp)+'</div></div>' +
+    '<div class="modal-stat"><div class="ml">SL</div><div class="mv" style="color:var(--red)">'+fmtPrice(sl)+'</div></div>' +
     '<div class="modal-stat"><div class="ml">CLOSED</div><div class="mv muted">'+closedAt+'</div></div>';
   try {
-    // Gunakan closedTs (unix ms) + buffer 15 candle untuk lihat area sekitar close
     const endParam = closedTs ? '&endTime=' + (parseInt(closedTs) + 15*60*1000*15) : '';
     const res = await fetch(API + '/klines/' + symbol + '?interval=15m&limit=100' + endParam);
     const klines = await res.json();
-    const candles = klines.map(function(k){return {o:+k[1],h:+k[2],l:+k[3],c:+k[4]};});
-    const canvas = document.getElementById('chartCanvas');
-    const container = canvas.parentElement;
-    canvas.width = container.offsetWidth - 24;
-    canvas.height = container.offsetHeight - 24;
+    if (!Array.isArray(klines) || klines.length === 0) throw new Error('no data');
+
+    const candles = klines.map(k => ({
+      time: Math.floor(+k[0] / 1000),
+      open: +k[1], high: +k[2], low: +k[3], close: +k[4]
+    }));
+
     document.getElementById('chartLoading').style.display = 'none';
-    canvas.style.display = 'block';
-    drawCandles(canvas.getContext('2d'), canvas.width, canvas.height, candles, entry, tp, sl);
+    const tvEl = document.getElementById('tvChart');
+    tvEl.style.display = 'block';
+    tvEl.innerHTML = '';
+    if (tvChartInstance) { tvChartInstance.remove(); tvChartInstance = null; }
+
+    const container = document.getElementById('chartContainer');
+    tvChartInstance = LightweightCharts.createChart(tvEl, {
+      width: container.offsetWidth,
+      height: container.offsetHeight - 20,
+      layout: { background: { color: '#fdf8f5' }, textColor: '#9e8f87', fontFamily: 'DM Sans, sans-serif', fontSize: 11 },
+      grid: { vertLines: { color: '#ede8e340' }, horzLines: { color: '#ede8e340' } },
+      rightPriceScale: { borderColor: '#ede8e3' },
+      timeScale: { borderColor: '#ede8e3', timeVisible: true, secondsVisible: false },
+    });
+
+    const candleSeries = tvChartInstance.addCandlestickSeries({
+      upColor: '#5a9e7a', downColor: '#c4788a',
+      borderUpColor: '#5a9e7a', borderDownColor: '#c4788a',
+      wickUpColor: '#5a9e7a', wickDownColor: '#c4788a',
+    });
+    candleSeries.setData(candles);
+    candleSeries.createPriceLine({ price: entry, color: '#9b8ec4', lineWidth: 1.5, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'ENTRY' });
+    candleSeries.createPriceLine({ price: tp,    color: '#5a9e7a', lineWidth: 1.5, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'TP' });
+    candleSeries.createPriceLine({ price: sl,    color: '#c4788a', lineWidth: 1.5, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'SL' });
+    tvChartInstance.timeScale().fitContent();
+
   } catch(e) {
     document.getElementById('chartLoading').textContent = 'Gagal memuat chart';
   }
 }
 
-function closeChart() { document.getElementById('chartModal').classList.remove('open'); }
+function closeChart() {
+  document.getElementById('chartModal').classList.remove('open');
+  if (tvChartInstance) { tvChartInstance.remove(); tvChartInstance = null; }
+  document.getElementById('tvChart').innerHTML = '';
+}
 
 function switchTab(name,el){
   ['signals','positions','history'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===name?'block':'none';});
