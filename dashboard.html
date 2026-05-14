@@ -499,7 +499,7 @@ function renderPositions(){
     return`<tr data-posid="${p.id}">
       <td style="font-weight:bold">${p.symbol}</td>
       <td><span class="badge ${p.direction==='LONG'?'long-b':'short-b'}">${p.direction==='LONG'?'▲':'▼'} ${p.direction}</span></td>
-      <td>${fmtPrice(p.entry)}</td><td>${fmtPrice(cur)}</td>
+      <td>${fmtPrice(p.entry)}</td><td class="cur-price">${fmtPrice(cur)}</td>
       <td class="pnl-cell ${upnl>=0?'green':'red'}">${fmtPnl(upnl)} <span class="muted">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span></td>
       <td><input type="number" class="tp-input" value="${p.tp}" step="0.001" onblur="updateTPSL(${p.id})" onkeydown="if(event.key==='Enter')updateTPSL(${p.id})"/></td>
       <td><input type="number" class="sl-input" value="${p.sl}" step="0.001" onblur="updateTPSL(${p.id})" onkeydown="if(event.key==='Enter')updateTPSL(${p.id})"/></td>
