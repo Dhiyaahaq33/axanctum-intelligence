@@ -492,7 +492,7 @@ function renderPositions(){
   const positions=state.positions||[];
   if(!positions.length){body.innerHTML='<tr><td colspan="9" class="no-data">Tidak ada posisi terbuka</td></tr>';return;}
   body.innerHTML=positions.map(p=>{
-    const live = positionsPnl[String(p.id)];const live = positionsPnl[String(p.id)];
+    const live = positionsPnl[String(p.id)];
     const cur=live?live.current_price:(state.prices[p.symbol]||p.entry);
     const upnl=live?live.upnl:0;
     const pct=p.margin>0?(upnl/(p.margin*p.leverage)*100):0;
