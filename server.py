@@ -184,7 +184,10 @@ async def check_tp_sl():
     for pos in sim_state["positions"]:
         price = sim_state["prices"].get(pos["symbol"])
         if not price:
-            print(f"[WARN] check_tp_sl: harga {pos['symbol']} tidak ada di cache")
+            # Coba fetch via REST sebelum skip
+            price = await fetch_price_rest(pos["symbol"])
+        if not price:
+            print(f"[WARN] check_tp_sl: harga {pos['symbol']} tidak ditemukan via WS maupun REST")
             continue
         tp = round(float(pos["tp"]), 8)
         sl = round(float(pos["sl"]), 8)
@@ -208,6 +211,27 @@ async def check_tp_sl():
     if to_close:
         await push_state()
 
+async def fetch_price_rest(symbol: str) -> float:
+    """Fetch harga via REST sebagai fallback kalau tidak ada di WebSocket cache."""
+    import aiohttp
+    urls = [
+        f"https://fapi.binance.com/fapi/v1/ticker/price?symbol={symbol}",
+        f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}",
+    ]
+    async with aiohttp.ClientSession() as session:
+        for url in urls:
+            try:
+                async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=3)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        price = float(data.get("price", 0))
+                        if price > 0:
+                            sim_state["prices"][symbol] = price  # update cache
+                            return price
+            except Exception:
+                continue
+    return 0.0
+
 async def price_broadcaster():
     while True:
         await asyncio.sleep(1)
@@ -216,10 +240,12 @@ async def price_broadcaster():
             relevant_prices = {}
             for pos in sim_state["positions"]:
                 sym = pos["symbol"]
-                # Coba dapat harga dari WebSocket (bisa ada atau tidak)
                 price = sim_state["prices"].get(sym, 0)
+                # Kalau tidak ada di WebSocket cache, fetch via REST
                 if price == 0:
-                    price = pos["entry"]  # fallback ke entry kalau belum ada harga
+                    price = await fetch_price_rest(sym)
+                if price == 0:
+                    price = pos["entry"]  # last resort fallback
                 relevant_prices[sym] = round(price, 8)
                 pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] > 0 else 0
                 pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
