@@ -317,6 +317,8 @@ let positionsPnl = {};
 let sigFilter = 'ALL';
 let autoOpen = true;
 let ws;
+let _knownSignalIds = new Set();
+let _stateInitialized = false;  // true setelah state pertama kali diterima
 
 function onToggleAuto(el) {
   autoOpen = el.checked;
@@ -331,9 +333,8 @@ function connectWS() {
   ws.onmessage = async (evt) => {
     const data = JSON.parse(evt.data);
     if (data.type === 'state') {
+      const prevState = state;
       state = data;
-      // Recalculate positionsPnl dari harga yang sudah ada di cache
-      // supaya uPnL tidak kosong setelah refresh
       if (state.positions && state.prices) {
         state.positions.forEach(p => {
           const price = state.prices[p.symbol] || p.entry;
@@ -343,6 +344,29 @@ function connectWS() {
         });
       }
       renderAll();
+
+      // Auto-open: deteksi sinyal baru dari perbandingan state
+      // Fix: sebelumnya hanya rely pada WS event 'new_signal' yang
+      // tidak selalu dikirim backend → auto-open tidak pernah jalan.
+      if (state.signals) {
+        if (!_stateInitialized) {
+          // Load pertama: tandai semua sinyal yang sudah ada sebagai "dikenal"
+          // supaya tidak di-approve ulang saat buka tab
+          state.signals.forEach(s => _knownSignalIds.add(s.id));
+          _stateInitialized = true;
+        } else if (autoOpen) {
+          // State update berikutnya: approve sinyal yang belum pernah diproses
+          for (const sig of state.signals) {
+            if (!_knownSignalIds.has(sig.id)) {
+              _knownSignalIds.add(sig.id);
+              await autoApprove(sig);
+            }
+          }
+        } else {
+          // autoOpen off: tetap track supaya tidak di-approve nanti saat dinyalakan
+          state.signals.forEach(s => _knownSignalIds.add(s.id));
+        }
+      }
     } else if (data.type === 'prices') {
       state.prices = data.prices;
       // Update harga ke state juga supaya recalc saat state event berikutnya bisa pakai
@@ -358,7 +382,12 @@ function connectWS() {
         else updatePnlInline(); // update PnL tanpa re-render tabel
       }
     } else if (data.type === 'new_signal' && autoOpen) {
-      await autoApprove(data.signal);
+      // Fallback: kalau backend tetap kirim event new_signal, tetap proses
+      // tapi cek dulu apakah sudah diproses lewat state diff di atas
+      if (!_knownSignalIds.has(data.signal.id)) {
+        _knownSignalIds.add(data.signal.id);
+        await autoApprove(data.signal);
+      }
     }
   };
   ws.onclose = () => { document.getElementById('wsStatus').textContent = 'RECONNECTING...'; setTimeout(connectWS, 3000); };
