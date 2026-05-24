@@ -70,15 +70,17 @@ async def init_db():
     print("[DB] Database siap")
 
 async def load_from_db():
+    global signal_id_counter
     if not db_pool:
         return
     async with db_pool.acquire() as conn:
         rows = await conn.fetch("SELECT key, value FROM sim_account")
         for r in rows:
-            if r["key"] == "balance":      sim_state["balance"]      = r["value"]
-            if r["key"] == "realized_pnl": sim_state["realized_pnl"] = r["value"]
-            if r["key"] == "wins":         sim_state["wins"]         = int(r["value"])
-            if r["key"] == "losses":       sim_state["losses"]       = int(r["value"])
+            if r["key"] == "balance":           sim_state["balance"]      = r["value"]
+            if r["key"] == "realized_pnl":      sim_state["realized_pnl"] = r["value"]
+            if r["key"] == "wins":              sim_state["wins"]         = int(r["value"])
+            if r["key"] == "losses":            sim_state["losses"]       = int(r["value"])
+            if r["key"] == "signal_id_counter": signal_id_counter         = int(r["value"])
 
         pos_rows = await conn.fetch("SELECT data FROM sim_positions")
         sim_state["positions"] = [json.loads(r["data"]) for r in pos_rows]
@@ -93,10 +95,11 @@ async def save_account():
         return
     async with db_pool.acquire() as conn:
         for key, val in [
-            ("balance",      sim_state["balance"]),
-            ("realized_pnl", sim_state["realized_pnl"]),
-            ("wins",         sim_state["wins"]),
-            ("losses",       sim_state["losses"]),
+            ("balance",           sim_state["balance"]),
+            ("realized_pnl",      sim_state["realized_pnl"]),
+            ("wins",              sim_state["wins"]),
+            ("losses",            sim_state["losses"]),
+            ("signal_id_counter", float(signal_id_counter)),
         ]:
             await conn.execute("""
                 INSERT INTO sim_account(key, value) VALUES($1,$2)
@@ -150,10 +153,8 @@ async def push_state():
         "signals":      sim_state["signals"],
         "history":      sim_state["history"][-50:],
         "prices":       sim_state["prices"],
-        "max_positions": sim_state.get("max_positions", 0),
-        "default_leverage": sim_state.get("default_leverage", 5),
-        "default_margin_pct": sim_state.get("default_margin_pct", 10),
-        "default_leverage": sim_state.get("default_leverage", 5),
+        "max_positions":      sim_state.get("max_positions", 0),
+        "default_leverage":   sim_state.get("default_leverage", 5),
         "default_margin_pct": sim_state.get("default_margin_pct", 10),
     })
 
@@ -338,6 +339,7 @@ async def receive_signal(sig: Signal):
     }
     signal_id_counter += 1
     sim_state["signals"].append(signal)
+    await save_account()
     await broadcast({"type": "new_signal", "signal": signal})
     await push_state()
     print(f"[Signal] {signal['symbol']} {signal['direction']}")
@@ -420,16 +422,9 @@ class SettingsRequest(BaseModel):
 @app.post("/save-settings")
 async def save_settings(req: SettingsRequest):
     if req.default_leverage is not None:
-        sim_state["default_leverage"] = req.default_leverage
+        sim_state["default_leverage"] = max(1, req.default_leverage)
     if req.default_margin_pct is not None:
-        sim_state["default_margin_pct"] = req.default_margin_pct
-    await push_state()
-    return {"ok": True}
-
-@app.post("/save-settings")
-async def save_settings(leverage: int = 5, margin_pct: float = 10):
-    sim_state["default_leverage"] = max(1, leverage)
-    sim_state["default_margin_pct"] = max(1, min(100, margin_pct))
+        sim_state["default_margin_pct"] = max(1, min(100, req.default_margin_pct))
     await push_state()
     return {"ok": True}
 
