@@ -37,6 +37,7 @@ sim_state = {
     "max_positions": 0,
     "default_leverage": 5,
     "default_margin_pct": 10,
+    "auto_open": False,
 }
 connected_clients: list[WebSocket] = []
 signal_id_counter = 1
@@ -81,6 +82,7 @@ async def load_from_db():
             if r["key"] == "wins":              sim_state["wins"]         = int(r["value"])
             if r["key"] == "losses":            sim_state["losses"]       = int(r["value"])
             if r["key"] == "signal_id_counter": signal_id_counter         = int(r["value"])
+            if r["key"] == "auto_open":         sim_state["auto_open"]    = bool(r["value"])
 
         pos_rows = await conn.fetch("SELECT data FROM sim_positions")
         sim_state["positions"] = [json.loads(r["data"]) for r in pos_rows]
@@ -100,6 +102,7 @@ async def save_account():
             ("wins",              sim_state["wins"]),
             ("losses",            sim_state["losses"]),
             ("signal_id_counter", float(signal_id_counter)),
+            ("auto_open",         float(sim_state.get("auto_open", False))),
         ]:
             await conn.execute("""
                 INSERT INTO sim_account(key, value) VALUES($1,$2)
@@ -156,6 +159,7 @@ async def push_state():
         "max_positions":      sim_state.get("max_positions", 0),
         "default_leverage":   sim_state.get("default_leverage", 5),
         "default_margin_pct": sim_state.get("default_margin_pct", 10),
+        "auto_open":          sim_state.get("auto_open", False),
     })
 
 # ─── Binance price feed ───────────────────────────────────────────────────────
@@ -343,7 +347,57 @@ async def receive_signal(sig: Signal):
     await broadcast({"type": "new_signal", "signal": signal})
     await push_state()
     print(f"[Signal] {signal['symbol']} {signal['direction']}")
+
+    # ── Auto-open logic ──────────────────────────────────────────────────
+    if sim_state.get("auto_open", False):
+        symbol = signal["symbol"]
+        max_pos = sim_state.get("max_positions", 0)
+        already_open = any(p["symbol"] == symbol for p in sim_state["positions"])
+
+        if already_open or symbol in _opening_symbols:
+            print(f"[AutoOpen] {symbol} sudah ada posisi terbuka, skip")
+        elif max_pos > 0 and len(sim_state["positions"]) >= max_pos:
+            print(f"[AutoOpen] Max posisi ({max_pos}) tercapai, skip")
+        else:
+            margin_pct = sim_state.get("default_margin_pct", 10) / 100
+            leverage   = sim_state.get("default_leverage", 5)
+            margin     = sim_state["balance"] * margin_pct
+            if margin > 0 and sim_state["balance"] >= margin:
+                _opening_symbols.add(symbol)
+                try:
+                    sim_state["balance"] -= margin
+                    pos = {
+                        "id":        int(time.time() * 1000),
+                        "symbol":    symbol,
+                        "direction": signal["direction"],
+                        "entry":     signal["entry"],
+                        "tp":        signal["tp"],
+                        "sl":        signal["sl"],
+                        "leverage":  leverage,
+                        "margin":    round(margin, 4),
+                        "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
+                    }
+                    sim_state["positions"].append(pos)
+                    sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != signal["id"]]
+                    await save_position(pos)
+                    await save_account()
+                    await push_state()
+                    print(f"[AutoOpen] ✅ {symbol} {signal['direction']} @ {signal['entry']}")
+                finally:
+                    _opening_symbols.discard(symbol)
+            else:
+                print(f"[AutoOpen] Saldo tidak cukup untuk {symbol}")
+    # ────────────────────────────────────────────────────────────────────
+
     return {"ok": True, "signal_id": signal["id"]}
+
+
+@app.post("/set-auto-open")
+async def set_auto_open(enabled: bool):
+    sim_state["auto_open"] = enabled
+    await save_account()
+    await push_state()
+    return {"ok": True, "auto_open": enabled}
 
 @app.post("/approve")
 async def approve_signal(req: ApproveRequest):
