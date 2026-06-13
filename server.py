@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "zaribaachabsoh")
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "zariba")
 DATABASE_URL       = os.environ.get("DATABASE_URL", "")  # otomatis dari Railway
 PORT               = int(os.environ.get("PORT", 8000))
 
