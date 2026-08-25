@@ -59,7 +59,8 @@ body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-s
 .stat .l { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
 .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 12px; margin-top: 8px; box-shadow: var(--card-glow); }
 .card .s-lbl { display: block; margin-bottom: 6px; }
-input[type="number"] { background: #ffffff; border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 11px; padding: 6px 8px; width: 100%; font-family: inherit; margin: 3px 0; outline: none; transition: border-color 0.2s; }
+input[type="number"] { background: var(--bg2); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text); font-size: 11px; padding: 6px 8px; width: 100%; font-family: inherit; margin: 3px 0; outline: none; transition: border-color 0.2s; }
+input[type="number"]::placeholder { color: var(--muted); opacity: 1; }
 input[type="number"]:focus { border-color: var(--purple2); box-shadow: 0 0 0 2px #9b8ec420; }
 .btn-grad { background: var(--purple2); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 10px; font-weight: bold; cursor: pointer; width: 100%; font-family: inherit; margin-top: 5px; letter-spacing: 1px; transition: opacity 0.2s; }
 .btn-grad:hover { opacity: 0.85; }
@@ -94,7 +95,7 @@ input[type="number"]:focus { border-color: var(--purple2); box-shadow: 0 0 0 2px
 table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 480px; }
 th { color: var(--purple2); font-weight: 600; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--card-border); letter-spacing: 0.5px; font-size: 10px; background: var(--bg3); text-transform: uppercase; }
 td { padding: 8px 8px; border-bottom: 0.5px solid var(--bg3); vertical-align: middle; transition: background 0.15s; }
-tr:hover td { background: #fdf8f5; }
+tr:hover td { background: var(--bg3); }
 .no-data { color: var(--border2); text-align: center; padding: 30px; font-size: 11px; }
 
 .badge { font-size: 9px; padding: 2px 7px; border-radius: 4px; display: inline-block; font-weight: bold; letter-spacing: 1px; }
@@ -129,7 +130,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 .modal-stat { display: flex; flex-direction: column; gap: 2px; }
 .modal-stat .ml { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
 .modal-stat .mv { font-size: 13px; font-weight: bold; }
-.chart-container { padding: 12px; height: 360px; position: relative; background: #fdf8f5; }
+.chart-container { padding: 12px; height: 360px; position: relative; background: var(--bg); }
 .chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; }
 .auto-badge { display: inline-block; background: #f0eef8; border: 0.5px solid #c4b8e0; color: var(--purple); border-radius: 4px; font-size: 9px; padding: 1px 6px; letter-spacing: 1px; }
 </style>
