@@ -1,273 +1,228 @@
 """
-AXANCTUM INTELLIGENCE 911 — Simulation Server
-Railway + PostgreSQL Edition
+AXANCTUM INTELLIGENCE 911 - Simulation Server
+Vercel Serverless + Neon Postgres Edition
+
+Beda dari versi lama (Railway + PostgreSQL, proses nyala terus dengan
+WebSocket + background asyncio task): Vercel serverless functions itu
+stateless per-invocation (tidak ada proses yang nyala terus, tidak bisa
+nahan background task, dan memori antar-request tidak dijamin sama).
+
+Jadi arsitekturnya diubah:
+- Semua state (account, positions, signals, history, prices) dibaca ulang
+  dari Postgres di AWAL tiap request (bukan cuma sekali di startup), dan
+  ditulis ke Postgres tiap ada perubahan - Postgres jadi single source of
+  truth, bukan variabel Python di memori.
+- WebSocket dihapus total (Vercel serverless tidak bisa nahan koneksi
+  persisten) - diganti endpoint GET /state yang di-poll dari frontend
+  tiap beberapa detik.
+- Loop pemantau harga real-time + auto TP/SL (dulu binance_price_feed +
+  check_tp_sl jalan sebagai background task di proses ini) dipindah total
+  ke script terpisah (price_monitor_once.py), dijalankan berkala lewat
+  GitHub Actions - baca posisi dari DB, cek harga live, tutup posisi yang
+  kena TP/SL langsung ke DB. Server ini hanya baca hasil akhirnya.
+- Sumber harga chart (/klines) pindah dari Binance ke OKX, karena Binance
+  memblokir IP US (termasuk region default Vercel serverless functions).
 """
 
-import asyncio
 import json
 import os
 import time
 from datetime import datetime, timezone, timedelta
-
-TZ_WIB = timezone(timedelta(hours=7))  # UTC+7
 from typing import Optional
-from contextlib import asynccontextmanager
 
-import uvicorn
 import asyncpg
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-# ─── Config ──────────────────────────────────────────────────────────────────
+TZ_WIB = timezone(timedelta(hours=7))
+
+# --- Config ------------------------------------------------------------------
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "zariba")
-DATABASE_URL       = os.environ.get("DATABASE_URL", "")  # otomatis dari Railway
-PORT               = int(os.environ.get("PORT", 8000))
+DATABASE_URL       = os.environ.get("DATABASE_URL", "")
 
-# ─── In-memory state (harga & sinyal pending tidak perlu disimpan ke DB) ─────
-sim_state = {
-    "balance":      1000.0,
-    "realized_pnl": 0.0,
-    "wins":         0,
-    "losses":       0,
-    "positions":    [],
-    "signals":      [],
-    "history":      [],
-    "prices":       {},
-    "max_positions": 0,
-    "default_leverage": 5,
-    "default_margin_pct": 10,
-    "auto_open": False,
-}
-connected_clients: list[WebSocket] = []
-signal_id_counter = 1
-db_pool = None
-# Set symbol yang sedang dalam proses dibuka — mencegah race condition
-_opening_symbols: set = set()
+_db_pool: Optional[asyncpg.Pool] = None
+_db_ready = False
 
-# ─── Database helpers ─────────────────────────────────────────────────────────
 
-async def init_db():
-    global db_pool
+async def get_pool() -> asyncpg.Pool:
+    """Buat/ambil connection pool. Di-cache per-instance Vercel (warm reuse
+    kalau instance yang sama dipakai lagi untuk request berikutnya)."""
+    global _db_pool, _db_ready
     if not DATABASE_URL:
-        print("[DB] DATABASE_URL tidak ada, pakai in-memory saja")
-        return
-    db_pool = await asyncpg.create_pool(DATABASE_URL, ssl="require")
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS sim_account (
-                key TEXT PRIMARY KEY,
-                value DOUBLE PRECISION
-            );
-            CREATE TABLE IF NOT EXISTS sim_positions (
-                id BIGINT PRIMARY KEY,
-                data JSONB
-            );
-            CREATE TABLE IF NOT EXISTS sim_history (
-                id BIGINT PRIMARY KEY,
-                data JSONB
-            );
-        """)
-    print("[DB] Database siap")
+        raise HTTPException(500, "DATABASE_URL belum diset")
+    if _db_pool is None:
+        _db_pool = await asyncpg.create_pool(DATABASE_URL, ssl="require", min_size=0, max_size=3)
+    if not _db_ready:
+        async with _db_pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS sim_account (
+                    key TEXT PRIMARY KEY,
+                    value DOUBLE PRECISION
+                );
+                CREATE TABLE IF NOT EXISTS sim_positions (
+                    id BIGINT PRIMARY KEY,
+                    data JSONB
+                );
+                CREATE TABLE IF NOT EXISTS sim_history (
+                    id BIGINT PRIMARY KEY,
+                    data JSONB
+                );
+                CREATE TABLE IF NOT EXISTS sim_signals (
+                    id BIGINT PRIMARY KEY,
+                    data JSONB
+                );
+                CREATE TABLE IF NOT EXISTS sim_prices (
+                    symbol TEXT PRIMARY KEY,
+                    price DOUBLE PRECISION,
+                    updated_at TIMESTAMPTZ DEFAULT now()
+                );
+            """)
+        _db_ready = True
+    return _db_pool
 
-async def load_from_db():
-    global signal_id_counter
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
+
+DEFAULT_ACCOUNT = {
+    "balance":            1000.0,
+    "realized_pnl":       0.0,
+    "wins":               0,
+    "losses":             0,
+    "max_positions":      0,
+    "default_leverage":   5,
+    "default_margin_pct": 10,
+    "auto_open":          False,
+    "signal_id_counter":  1,
+}
+
+
+async def load_state() -> dict:
+    """Baca seluruh state simulasi dari Postgres - dipanggil di awal tiap
+    request supaya selalu dapat data terbaru (tidak ada memori antar-request
+    yang bisa diandalkan di serverless)."""
+    pool = await get_pool()
+    state = dict(DEFAULT_ACCOUNT)
+    async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT key, value FROM sim_account")
         for r in rows:
-            if r["key"] == "balance":           sim_state["balance"]      = r["value"]
-            if r["key"] == "realized_pnl":      sim_state["realized_pnl"] = r["value"]
-            if r["key"] == "wins":              sim_state["wins"]         = int(r["value"])
-            if r["key"] == "losses":            sim_state["losses"]       = int(r["value"])
-            if r["key"] == "signal_id_counter": signal_id_counter         = int(r["value"])
-            if r["key"] == "auto_open":         sim_state["auto_open"]    = bool(r["value"])
+            key = r["key"]
+            if key in ("wins", "losses", "signal_id_counter"):
+                state[key] = int(r["value"])
+            elif key == "auto_open":
+                state[key] = bool(r["value"])
+            else:
+                state[key] = r["value"]
 
-        pos_rows = await conn.fetch("SELECT data FROM sim_positions")
-        sim_state["positions"] = [json.loads(r["data"]) for r in pos_rows]
+        pos_rows = await conn.fetch("SELECT data FROM sim_positions ORDER BY id")
+        state["positions"] = [json.loads(r["data"]) for r in pos_rows]
+
+        sig_rows = await conn.fetch("SELECT data FROM sim_signals ORDER BY id")
+        state["signals"] = [json.loads(r["data"]) for r in sig_rows]
 
         hist_rows = await conn.fetch("SELECT data FROM sim_history ORDER BY id DESC LIMIT 100")
-        sim_state["history"] = [json.loads(r["data"]) for r in hist_rows]
+        state["history"] = [json.loads(r["data"]) for r in hist_rows]
 
-    print(f"[DB] Loaded: balance=${sim_state['balance']:.2f}, {len(sim_state['positions'])} posisi")
+        price_rows = await conn.fetch("SELECT symbol, price FROM sim_prices")
+        state["prices"] = {r["symbol"]: r["price"] for r in price_rows}
 
-async def save_account():
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        for key, val in [
-            ("balance",           sim_state["balance"]),
-            ("realized_pnl",      sim_state["realized_pnl"]),
-            ("wins",              sim_state["wins"]),
-            ("losses",            sim_state["losses"]),
-            ("signal_id_counter", float(signal_id_counter)),
-            ("auto_open",         float(sim_state.get("auto_open", False))),
-        ]:
-            await conn.execute("""
+    return state
+
+
+async def save_account(state: dict) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        for key in (
+            "balance", "realized_pnl", "wins", "losses",
+            "signal_id_counter", "auto_open", "max_positions",
+            "default_leverage", "default_margin_pct",
+        ):
+            await conn.execute(
+                """
                 INSERT INTO sim_account(key, value) VALUES($1,$2)
                 ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
-            """, key, float(val))
+                """,
+                key, float(state.get(key, 0) or 0),
+            )
 
-async def save_position(pos: dict):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
+
+async def save_position(pos: dict) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
             INSERT INTO sim_positions(id, data) VALUES($1,$2)
             ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data
-        """, pos["id"], json.dumps(pos))
+            """,
+            pos["id"], json.dumps(pos),
+        )
 
-async def delete_position(pos_id: int):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
+
+async def delete_position(pos_id: int) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
         await conn.execute("DELETE FROM sim_positions WHERE id=$1", pos_id)
 
-async def save_history(entry: dict):
-    if not db_pool:
-        return
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
+
+async def save_signal(sig: dict) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO sim_signals(id, data) VALUES($1,$2)
+            ON CONFLICT(id) DO UPDATE SET data=EXCLUDED.data
+            """,
+            sig["id"], json.dumps(sig),
+        )
+
+
+async def delete_signal(sig_id: int) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM sim_signals WHERE id=$1", sig_id)
+
+
+async def save_history(entry: dict) -> None:
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
             INSERT INTO sim_history(id, data) VALUES($1,$2)
             ON CONFLICT(id) DO NOTHING
-        """, entry["id"], json.dumps(entry))
+            """,
+            entry["id"], json.dumps(entry),
+        )
 
-# ─── WebSocket broadcast ──────────────────────────────────────────────────────
 
-async def broadcast(data: dict):
-    dead = []
-    for ws in connected_clients:
-        try:
-            await ws.send_json(data)
-        except Exception:
-            dead.append(ws)
-    for ws in dead:
-        connected_clients.remove(ws)
+def _state_response(state: dict) -> dict:
+    return {
+        "type":               "state",
+        "balance":            state["balance"],
+        "realized_pnl":       state["realized_pnl"],
+        "wins":               state["wins"],
+        "losses":             state["losses"],
+        "positions":          state["positions"],
+        "signals":            state["signals"],
+        "history":            state["history"][:50],
+        "prices":             state["prices"],
+        "max_positions":      state.get("max_positions", 0),
+        "default_leverage":   state.get("default_leverage", 5),
+        "default_margin_pct": state.get("default_margin_pct", 10),
+        "auto_open":          state.get("auto_open", False),
+    }
 
-async def push_state():
-    await broadcast({
-        "type":         "state",
-        "balance":      sim_state["balance"],
-        "realized_pnl": sim_state["realized_pnl"],
-        "wins":         sim_state["wins"],
-        "losses":       sim_state["losses"],
-        "positions":    sim_state["positions"],
-        "signals":      sim_state["signals"],
-        "history":      sim_state["history"][-50:],
-        "prices":       sim_state["prices"],
-        "max_positions":      sim_state.get("max_positions", 0),
-        "default_leverage":   sim_state.get("default_leverage", 5),
-        "default_margin_pct": sim_state.get("default_margin_pct", 10),
-        "auto_open":          sim_state.get("auto_open", False),
-    })
 
-# ─── Binance price feed ───────────────────────────────────────────────────────
-
-async def binance_price_feed():
-    import websockets as ws_lib
-    url = "wss://stream.binance.com:9443/ws/!miniTicker@arr"
-    while True:
-        try:
-            async with ws_lib.connect(url, ping_interval=20) as ws:
-                print("[Binance] Terhubung — memantau SEMUA symbol")
-                async for raw in ws:
-                    tickers = json.loads(raw)
-                    if isinstance(tickers, list):
-                        for t in tickers:
-                            sym = t.get("s", "")
-                            price = float(t.get("c", 0))
-                            if sym and price:
-                                sim_state["prices"][sym] = price
-                    await check_tp_sl()
-        except Exception as e:
-            print(f"[Binance] Putus: {e}. Reconnect 5s...")
-            await asyncio.sleep(5)
-
-async def check_tp_sl():
-    to_close = []
-    for pos in sim_state["positions"]:
-        price = sim_state["prices"].get(pos["symbol"])
-        if not price:
-            # Coba fetch via REST sebelum skip
-            price = await fetch_price_rest(pos["symbol"])
-        if not price:
-            print(f"[WARN] check_tp_sl: harga {pos['symbol']} tidak ditemukan via WS maupun REST")
-            continue
-        tp = round(float(pos["tp"]), 8)
-        sl = round(float(pos["sl"]), 8)
-        cur = round(float(price), 8)
-        if pos["direction"] == "LONG":
-            if cur >= tp:
-                print(f"[TP] {pos['symbol']} LONG hit TP: price={cur} tp={tp}")
-                to_close.append((pos["id"], "TP", price))
-            elif cur <= sl:
-                print(f"[SL] {pos['symbol']} LONG hit SL: price={cur} sl={sl}")
-                to_close.append((pos["id"], "SL", price))
-        else:
-            if cur <= tp:
-                print(f"[TP] {pos['symbol']} SHORT hit TP: price={cur} tp={tp}")
-                to_close.append((pos["id"], "TP", price))
-            elif cur >= sl:
-                print(f"[SL] {pos['symbol']} SHORT hit SL: price={cur} sl={sl}")
-                to_close.append((pos["id"], "SL", price))
-    for pos_id, reason, exit_price in to_close:
-        await _close_position(pos_id, reason, exit_price)
-    if to_close:
-        await push_state()
-
-async def fetch_price_rest(symbol: str) -> float:
-    """Fetch harga via REST sebagai fallback kalau tidak ada di WebSocket cache."""
-    import aiohttp
-    urls = [
-        f"https://fapi.binance.com/fapi/v1/ticker/price?symbol={symbol}",
-        f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}",
-    ]
-    async with aiohttp.ClientSession() as session:
-        for url in urls:
-            try:
-                async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=3)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        price = float(data.get("price", 0))
-                        if price > 0:
-                            sim_state["prices"][symbol] = price  # update cache
-                            return price
-            except Exception:
-                continue
-    return 0.0
-
-async def price_broadcaster():
-    while True:
-        await asyncio.sleep(1)
-        if connected_clients and sim_state["positions"]:
-            pnl_list = []
-            relevant_prices = {}
-            for pos in sim_state["positions"]:
-                sym = pos["symbol"]
-                price = sim_state["prices"].get(sym, 0)
-                # Kalau tidak ada di WebSocket cache, fetch via REST
-                if price == 0:
-                    price = await fetch_price_rest(sym)
-                if price == 0:
-                    price = pos["entry"]  # last resort fallback
-                relevant_prices[sym] = round(price, 8)
-                pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] > 0 else 0
-                pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
-                pnl_list.append({"id": pos["id"], "current_price": round(price, 8), "upnl": round(pnl, 4)})
-            await broadcast({"type": "prices", "prices": relevant_prices, "positions_pnl": pnl_list})
-
-async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] = None):
-    pos = next((p for p in sim_state["positions"] if p["id"] == pos_id), None)
+async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_price: Optional[float] = None):
+    pos = next((p for p in state["positions"] if p["id"] == pos_id), None)
     if not pos:
         return None
-    price = exit_price or sim_state["prices"].get(pos["symbol"], pos["entry"])
-    pct = (price - pos["entry"]) / pos["entry"]
+    price = exit_price or state["prices"].get(pos["symbol"], pos["entry"])
+    pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] else 0
     pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
-    sim_state["balance"] += pos["margin"] + pnl
-    sim_state["realized_pnl"] += pnl
-    if pnl >= 0: sim_state["wins"] += 1
-    else:        sim_state["losses"] += 1
+    state["balance"] += pos["margin"] + pnl
+    state["realized_pnl"] += pnl
+    if pnl >= 0:
+        state["wins"] += 1
+    else:
+        state["losses"] += 1
     entry = {
         "id":        int(time.time() * 1000),
         "time":      datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
@@ -281,30 +236,17 @@ async def _close_position(pos_id: int, reason: str, exit_price: Optional[float] 
         "tp":        pos["tp"],
         "sl":        pos["sl"],
     }
-    sim_state["history"].append(entry)
-    sim_state["positions"] = [p for p in sim_state["positions"] if p["id"] != pos_id]
+    state["history"].insert(0, entry)
+    state["positions"] = [p for p in state["positions"] if p["id"] != pos_id]
     await delete_position(pos_id)
     await save_history(entry)
-    await save_account()
+    await save_account(state)
     return pnl
 
-# ─── Lifespan ─────────────────────────────────────────────────────────────────
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db()
-    await load_from_db()
-    t1 = asyncio.create_task(binance_price_feed())
-    t2 = asyncio.create_task(price_broadcaster())
-    yield
-    t1.cancel(); t2.cancel()
-    if db_pool:
-        await db_pool.close()
+app = FastAPI(title="AXANCTUM INTELLIGENCE 911")
 
-app = FastAPI(title="AXANCTUM INTELLIGENCE 911", lifespan=lifespan)
-
-# ─── Models ───────────────────────────────────────────────────────────────────
-
+# --- Models --------------------------------------------------------------
 class Signal(BaseModel):
     symbol: str; direction: str; entry: float; tp: float; sl: float
     grade: str = "B"; leverage: int = 5; source: str = "bot"
@@ -323,7 +265,18 @@ class DepositRequest(BaseModel):
 class LoginRequest(BaseModel):
     password: str
 
-# ─── Endpoints ────────────────────────────────────────────────────────────────
+class SettingsRequest(BaseModel):
+    default_leverage: Optional[int] = None
+    default_margin_pct: Optional[float] = None
+
+
+# --- Endpoints -------------------------------------------------------------
+
+@app.get("/state")
+async def get_state():
+    state = await load_state()
+    return _state_response(state)
+
 
 @app.post("/login")
 async def login(req: LoginRequest):
@@ -331,100 +284,94 @@ async def login(req: LoginRequest):
         return {"ok": True}
     raise HTTPException(401, "Password salah")
 
+
 @app.post("/signal")
 async def receive_signal(sig: Signal):
-    global signal_id_counter
+    state = await load_state()
+    signal_id = state["signal_id_counter"]
     signal = {
-        "id": signal_id_counter, "symbol": sig.symbol.upper(),
+        "id": signal_id, "symbol": sig.symbol.upper(),
         "direction": sig.direction.upper(), "entry": sig.entry,
         "tp": sig.tp, "sl": sig.sl, "grade": sig.grade,
         "leverage": sig.leverage, "source": sig.source,
         "time": datetime.now(TZ_WIB).strftime("%H:%M:%S"),
     }
-    signal_id_counter += 1
-    sim_state["signals"].append(signal)
-    await save_account()
-    await broadcast({"type": "new_signal", "signal": signal})
-    await push_state()
+    state["signal_id_counter"] = signal_id + 1
+    state["signals"].append(signal)
+    await save_signal(signal)
+    await save_account(state)
     print(f"[Signal] {signal['symbol']} {signal['direction']}")
 
-    # ── Auto-open logic ──────────────────────────────────────────────────
-    if sim_state.get("auto_open", False):
+    # -- Auto-open logic --
+    if state.get("auto_open", False):
         symbol = signal["symbol"]
-        max_pos = sim_state.get("max_positions", 0)
-        already_open = any(p["symbol"] == symbol for p in sim_state["positions"])
+        max_pos = state.get("max_positions", 0)
+        already_open = any(p["symbol"] == symbol for p in state["positions"])
 
-        if already_open or symbol in _opening_symbols:
+        if already_open:
             print(f"[AutoOpen] {symbol} sudah ada posisi terbuka, skip")
-        elif max_pos > 0 and len(sim_state["positions"]) >= max_pos:
+        elif max_pos > 0 and len(state["positions"]) >= max_pos:
             print(f"[AutoOpen] Max posisi ({max_pos}) tercapai, skip")
         else:
-            margin_pct = sim_state.get("default_margin_pct", 10) / 100
-            leverage   = sim_state.get("default_leverage", 5)
-            margin     = sim_state["balance"] * margin_pct
-            if margin > 0 and sim_state["balance"] >= margin:
-                _opening_symbols.add(symbol)
-                try:
-                    sim_state["balance"] -= margin
-                    pos = {
-                        "id":        int(time.time() * 1000),
-                        "symbol":    symbol,
-                        "direction": signal["direction"],
-                        "entry":     signal["entry"],
-                        "tp":        signal["tp"],
-                        "sl":        signal["sl"],
-                        "leverage":  leverage,
-                        "margin":    round(margin, 4),
-                        "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
-                    }
-                    sim_state["positions"].append(pos)
-                    sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != signal["id"]]
-                    await save_position(pos)
-                    await save_account()
-                    await push_state()
-                    print(f"[AutoOpen] ✅ {symbol} {signal['direction']} @ {signal['entry']}")
-                finally:
-                    _opening_symbols.discard(symbol)
+            margin_pct = state.get("default_margin_pct", 10) / 100
+            leverage   = state.get("default_leverage", 5)
+            margin     = state["balance"] * margin_pct
+            if margin > 0 and state["balance"] >= margin:
+                state["balance"] -= margin
+                pos = {
+                    "id":        int(time.time() * 1000),
+                    "symbol":    symbol,
+                    "direction": signal["direction"],
+                    "entry":     signal["entry"],
+                    "tp":        signal["tp"],
+                    "sl":        signal["sl"],
+                    "leverage":  leverage,
+                    "margin":    round(margin, 4),
+                    "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
+                }
+                state["positions"].append(pos)
+                state["signals"] = [s for s in state["signals"] if s["id"] != signal["id"]]
+                await save_position(pos)
+                await delete_signal(signal["id"])
+                await save_account(state)
+                print(f"[AutoOpen] {symbol} {signal['direction']} @ {signal['entry']}")
             else:
                 print(f"[AutoOpen] Saldo tidak cukup untuk {symbol}")
-    # ────────────────────────────────────────────────────────────────────
 
     return {"ok": True, "signal_id": signal["id"]}
 
 
 @app.post("/set-auto-open")
 async def set_auto_open(enabled: bool):
-    sim_state["auto_open"] = enabled
-    await save_account()
-    await push_state()
+    state = await load_state()
+    state["auto_open"] = enabled
+    await save_account(state)
     return {"ok": True, "auto_open": enabled}
+
 
 @app.post("/approve")
 async def approve_signal(req: ApproveRequest):
-    sig = next((s for s in sim_state["signals"] if s["id"] == req.signal_id), None)
-    if not sig: raise HTTPException(404, "Sinyal tidak ditemukan")
+    state = await load_state()
+    sig = next((s for s in state["signals"] if s["id"] == req.signal_id), None)
+    if not sig:
+        raise HTTPException(404, "Sinyal tidak ditemukan")
 
-    # Cek max posisi terbuka
-    max_pos = sim_state.get("max_positions", 0)
-    if max_pos > 0 and len(sim_state["positions"]) >= max_pos:
-        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
+    max_pos = state.get("max_positions", 0)
+    if max_pos > 0 and len(state["positions"]) >= max_pos:
+        await delete_signal(req.signal_id)
         return {"ok": False, "reason": f"Max posisi ({max_pos}) sudah tercapai"}
 
-    # Cek deduplikasi — 1 posisi per symbol
     symbol = sig["symbol"]
-    already_open = any(p["symbol"] == symbol for p in sim_state["positions"])
-    if already_open or symbol in _opening_symbols:
-        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
+    already_open = any(p["symbol"] == symbol for p in state["positions"])
+    if already_open:
+        await delete_signal(req.signal_id)
         return {"ok": False, "reason": f"{symbol} sudah ada posisi terbuka"}
 
-    # Lock symbol sementara proses dibuka
-    _opening_symbols.add(symbol)
-    try:
-        margin = sim_state["balance"] * req.margin_pct
-        if margin <= 0 or sim_state["balance"] < margin:
-            raise HTTPException(400, "Saldo tidak cukup")
-        sim_state["balance"] -= margin
-        pos = {
+    margin = state["balance"] * req.margin_pct
+    if margin <= 0 or state["balance"] < margin:
+        raise HTTPException(400, "Saldo tidak cukup")
+    state["balance"] -= margin
+    pos = {
         "id": int(time.time() * 1000), "symbol": sig["symbol"],
         "direction": sig["direction"], "entry": sig["entry"],
         "tp": req.tp or sig["tp"], "sl": req.sl or sig["sl"],
@@ -432,121 +379,138 @@ async def approve_signal(req: ApproveRequest):
         "margin": round(margin, 4),
         "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
     }
-        sim_state["positions"].append(pos)
-        sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != req.signal_id]
-        await save_position(pos)
-        await save_account()
-        await push_state()
-        return {"ok": True, "position_id": pos["id"]}
-    finally:
-        _opening_symbols.discard(symbol)
+    await save_position(pos)
+    await delete_signal(req.signal_id)
+    await save_account(state)
+    return {"ok": True, "position_id": pos["id"]}
+
 
 @app.post("/reject/{signal_id}")
 async def reject_signal(signal_id: int):
-    sim_state["signals"] = [s for s in sim_state["signals"] if s["id"] != signal_id]
-    await push_state()
+    await delete_signal(signal_id)
     return {"ok": True}
+
 
 @app.post("/close")
 async def close_position(req: CloseRequest):
-    pnl = await _close_position(req.position_id, req.reason)
-    if pnl is None: raise HTTPException(404, "Posisi tidak ditemukan")
-    await push_state()
+    state = await load_state()
+    pnl = await _close_position_in_state(state, req.position_id, req.reason)
+    if pnl is None:
+        raise HTTPException(404, "Posisi tidak ditemukan")
     return {"ok": True, "pnl": pnl}
+
 
 @app.post("/update-position/{pos_id}")
 async def update_position(pos_id: int, tp: Optional[float] = None, sl: Optional[float] = None):
-    pos = next((p for p in sim_state["positions"] if p["id"] == pos_id), None)
-    if not pos: raise HTTPException(404, "Posisi tidak ditemukan")
-    if tp: pos["tp"] = tp
-    if sl: pos["sl"] = sl
+    state = await load_state()
+    pos = next((p for p in state["positions"] if p["id"] == pos_id), None)
+    if not pos:
+        raise HTTPException(404, "Posisi tidak ditemukan")
+    if tp:
+        pos["tp"] = tp
+    if sl:
+        pos["sl"] = sl
     await save_position(pos)
     return {"ok": True}
 
+
 @app.post("/set-max-positions")
 async def set_max_positions(max_pos: int):
-    sim_state["max_positions"] = max(0, max_pos)
-    await push_state()
-    return {"ok": True, "max_positions": sim_state["max_positions"]}
+    state = await load_state()
+    state["max_positions"] = max(0, max_pos)
+    await save_account(state)
+    return {"ok": True, "max_positions": state["max_positions"]}
 
-class SettingsRequest(BaseModel):
-    default_leverage: Optional[int] = None
-    default_margin_pct: Optional[float] = None
 
 @app.post("/save-settings")
 async def save_settings(req: SettingsRequest):
+    state = await load_state()
     if req.default_leverage is not None:
-        sim_state["default_leverage"] = max(1, req.default_leverage)
+        state["default_leverage"] = max(1, req.default_leverage)
     if req.default_margin_pct is not None:
-        sim_state["default_margin_pct"] = max(1, min(100, req.default_margin_pct))
-    await push_state()
+        state["default_margin_pct"] = max(1, min(100, req.default_margin_pct))
+    await save_account(state)
     return {"ok": True}
+
 
 @app.post("/deposit")
 async def deposit(req: DepositRequest):
-    if req.amount == 0: raise HTTPException(400, "Jumlah tidak boleh 0")
-    sim_state["balance"] += req.amount
-    await save_account()
-    await push_state()
-    return {"ok": True, "balance": sim_state["balance"]}
+    if req.amount == 0:
+        raise HTTPException(400, "Jumlah tidak boleh 0")
+    state = await load_state()
+    state["balance"] += req.amount
+    await save_account(state)
+    return {"ok": True, "balance": state["balance"]}
+
 
 @app.post("/set-balance")
 async def set_balance(req: DepositRequest):
-    if req.amount <= 0: raise HTTPException(400, "Saldo harus lebih dari 0")
-    sim_state["balance"] = req.amount
-    await save_account()
-    await push_state()
-    return {"ok": True, "balance": sim_state["balance"]}
+    if req.amount <= 0:
+        raise HTTPException(400, "Saldo harus lebih dari 0")
+    state = await load_state()
+    state["balance"] = req.amount
+    await save_account(state)
+    return {"ok": True, "balance": state["balance"]}
+
 
 @app.post("/reset")
 async def reset():
-    sim_state.update({"balance":1000.0,"realized_pnl":0.0,"wins":0,"losses":0,"positions":[],"signals":[],"history":[]})
-    if db_pool:
-        async with db_pool.acquire() as conn:
-            await conn.execute("DELETE FROM sim_positions; DELETE FROM sim_history; DELETE FROM sim_account;")
-    await push_state()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "DELETE FROM sim_positions; DELETE FROM sim_history; "
+            "DELETE FROM sim_signals; DELETE FROM sim_account;"
+        )
     return {"ok": True}
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connected_clients.append(websocket)
-    await push_state()
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        if websocket in connected_clients:
-            connected_clients.remove(websocket)
 
 @app.get("/klines/{symbol}")
 async def get_klines(symbol: str, interval: str = "15m", limit: int = 100, endTime: Optional[int] = None):
     """
-    Proxy chart — coba Futures dulu, fallback ke Spot.
-    endTime: unix timestamp ms, untuk chart history yang akurat.
+    Proxy chart candle - pakai OKX (Binance memblokir IP US/Vercel serverless).
+    symbol format tetap Binance-style ('BTCUSDT') supaya frontend tidak perlu
+    diubah - diterjemahkan ke instId OKX di sini.
     """
     import aiohttp
-    end_param = f"&endTime={endTime}" if endTime else ""
-    urls = [
-        f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}{end_param}",
-        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}{end_param}",
-    ]
-    async with aiohttp.ClientSession() as session:
-        for url in urls:
-            try:
-                async with session.get(url, ssl=False, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if isinstance(data, list) and len(data) > 0:
-                            return data
-            except Exception:
-                continue
+
+    base = symbol[:-4] if symbol.upper().endswith("USDT") else symbol
+    inst_id = f"{base.upper()}-USDT-SWAP"
+    bar_map = {
+        "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "30m": "30m",
+        "1h": "1H", "2h": "2H", "4h": "4H", "6h": "6H", "8h": "8H",
+        "12h": "12H", "1d": "1Dutc",
+    }
+    bar = bar_map.get(interval, interval)
+    params = f"instId={inst_id}&bar={bar}&limit={limit}"
+    if endTime:
+        params += f"&before={endTime}"
+    url = f"https://www.okx.com/api/v5/market/candles?{params}"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    body = await resp.json(content_type=None)
+                    rows = body.get("data", [])
+                    rows = list(reversed(rows))  # OKX newest-first -> oldest-first
+                    # Format ulang ke shape Binance-kline-like supaya chart lib
+                    # di frontend (yang mengharap [openTime,o,h,l,c,vol,...]) tetap jalan.
+                    return [
+                        [int(r[0]), r[1], r[2], r[3], r[4], r[5], int(r[0]), r[7], 0, r[6], "0", "0"]
+                        for r in rows
+                    ]
+    except Exception:
+        pass
     return {"error": "Tidak bisa fetch data chart"}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard():
-    with open("dashboard.html", "r") as f:
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "dashboard.html"), "r", encoding="utf-8") as f:
         return f.read()
 
+
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=PORT, reload=False)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
