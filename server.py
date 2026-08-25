@@ -78,6 +78,8 @@ async def get_pool() -> asyncpg.Pool:
                     price DOUBLE PRECISION,
                     updated_at TIMESTAMPTZ DEFAULT now()
                 );
+                CREATE UNIQUE INDEX IF NOT EXISTS sim_positions_symbol_uidx
+                    ON sim_positions ((data->>'symbol'));
             """)
         _db_ready = True
     return _db_pool
@@ -155,6 +157,41 @@ async def save_position(pos: dict) -> None:
             """,
             pos["id"], json.dumps(pos),
         )
+
+
+async def open_position_atomic(pos: dict, margin: float) -> bool:
+    """
+    Buka posisi baru + potong saldo dalam satu transaksi atomik. Kalau
+    symbol yang sama sudah punya posisi terbuka (dicek lewat unique index
+    di kolom data->>'symbol'), INSERT gagal dan seluruh transaksi
+    di-rollback (saldo TIDAK ikut terpotong) - return False.
+
+    Ini mencegah dua request nyaris bersamaan (auto-open dari sinyal bot
+    yang terkirim 2x, atau approve manual + auto-open barengan) sama-sama
+    lolos cek "belum ada posisi" dan membuat posisi dobel untuk symbol
+    yang sama.
+    """
+    pool = await get_pool()
+    try:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "INSERT INTO sim_positions(id, data) VALUES($1,$2)",
+                    pos["id"], json.dumps(pos),
+                )
+                bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance' FOR UPDATE")
+                balance = float(bal_row["value"]) if bal_row else 1000.0
+                balance -= margin
+                await conn.execute(
+                    """
+                    INSERT INTO sim_account(key, value) VALUES('balance', $1)
+                    ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
+                    """,
+                    float(balance),
+                )
+        return True
+    except asyncpg.UniqueViolationError:
+        return False
 
 
 async def delete_position(pos_id: int) -> None:
@@ -369,7 +406,6 @@ async def receive_signal(sig: Signal):
             leverage   = state.get("default_leverage", 5)
             margin     = state["balance"] * margin_pct
             if margin > 0 and state["balance"] >= margin:
-                state["balance"] -= margin
                 pos = {
                     "id":        int(time.time() * 1000),
                     "symbol":    symbol,
@@ -381,12 +417,12 @@ async def receive_signal(sig: Signal):
                     "margin":    round(margin, 4),
                     "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
                 }
-                state["positions"].append(pos)
-                state["signals"] = [s for s in state["signals"] if s["id"] != signal["id"]]
-                await save_position(pos)
-                await delete_signal(signal["id"])
-                await save_account(state)
-                print(f"[AutoOpen] {symbol} {signal['direction']} @ {signal['entry']}")
+                opened = await open_position_atomic(pos, margin)
+                if opened:
+                    await delete_signal(signal["id"])
+                    print(f"[AutoOpen] {symbol} {signal['direction']} @ {signal['entry']}")
+                else:
+                    print(f"[AutoOpen] {symbol} sudah dibuka proses lain (race) - skip.")
             else:
                 print(f"[AutoOpen] Saldo tidak cukup untuk {symbol}")
 
@@ -422,7 +458,6 @@ async def approve_signal(req: ApproveRequest):
     margin = state["balance"] * req.margin_pct
     if margin <= 0 or state["balance"] < margin:
         raise HTTPException(400, "Saldo tidak cukup")
-    state["balance"] -= margin
     pos = {
         "id": int(time.time() * 1000), "symbol": sig["symbol"],
         "direction": sig["direction"], "entry": sig["entry"],
@@ -431,9 +466,11 @@ async def approve_signal(req: ApproveRequest):
         "margin": round(margin, 4),
         "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
     }
-    await save_position(pos)
+    opened = await open_position_atomic(pos, margin)
+    if not opened:
+        await delete_signal(req.signal_id)
+        return {"ok": False, "reason": f"{symbol} sudah ada posisi terbuka"}
     await delete_signal(req.signal_id)
-    await save_account(state)
     return {"ok": True, "position_id": pos["id"]}
 
 
