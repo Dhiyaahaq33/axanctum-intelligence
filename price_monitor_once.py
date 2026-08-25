@@ -27,6 +27,47 @@ import asyncpg
 TZ_WIB = timezone(timedelta(hours=7))
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 OKX_BASE = "https://www.okx.com"
+TELEGRAM_API = "https://api.telegram.org"
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_TOKEN_2 = os.environ.get("TELEGRAM_TOKEN_2", "")
+TELEGRAM_CHAT_ID_2 = os.environ.get("TELEGRAM_CHAT_ID_2", "")
+
+
+def _telegram_targets():
+    pairs = [
+        (TELEGRAM_TOKEN, TELEGRAM_CHAT_ID),
+        (TELEGRAM_TOKEN_2, TELEGRAM_CHAT_ID_2),
+    ]
+    return [(t, c) for t, c in pairs if t and c]
+
+
+async def notify_telegram_close(session: aiohttp.ClientSession, pos: dict, reason: str, exit_price: float, pnl: float) -> None:
+    """Kirim notifikasi Telegram tiap posisi kena TP/SL (eksekusi otomatis)."""
+    targets = _telegram_targets()
+    if not targets:
+        return
+    emoji = "\U0001F7E2" if pnl >= 0 else "\U0001F534"  # hijau/merah
+    text = (
+        f"{emoji} <b>{reason} EXECUTED</b> - {pos['symbol']} {pos['direction']}\n"
+        f"Entry: {pos['entry']}\n"
+        f"Exit: {round(exit_price, 6)}\n"
+        f"PnL: {round(pnl, 4)}\n"
+        f"Dashboard: https://axanctum-intelligence.vercel.app"
+    )
+    for token, chat_id in targets:
+        try:
+            async with session.post(
+                f"{TELEGRAM_API}/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    print(f"[telegram] HTTP {resp.status}: {body[:120]}")
+        except Exception as exc:
+            print(f"[telegram] error: {exc}")
 
 LOOP_BUDGET_SEC = float(os.environ.get("PRICE_MONITOR_BUDGET_SEC", 270))
 LOOP_INTERVAL_SEC = float(os.environ.get("PRICE_MONITOR_INTERVAL_SEC", 2))
@@ -81,7 +122,18 @@ async def save_prices(pool: asyncpg.Pool, prices: Dict[str, float]) -> None:
         )
 
 
-async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price: float) -> float:
+async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price: float) -> Optional[float]:
+    """
+    Tutup posisi secara atomik supaya aman dari race condition - misalnya
+    GitHub Actions run yang tumpang tindih, atau dashboard (server.py) yang
+    manual-close posisi yang sama persis saat price_monitor_once.py juga
+    mau menutupnya karena TP/SL. Tanpa ini, dua proses bisa sama-sama
+    berhasil "menutup" posisi yang sama dan balance ke-double-count.
+
+    Strateginya: DELETE posisi dulu sebagai klaim atomik (row lock implisit)
+    - kalau baris tidak ditemukan (sudah dihapus proses lain), batalkan tanpa
+    menyentuh balance/history sama sekali.
+    """
     entry = float(pos["entry"])
     pct = (exit_price - entry) / entry if entry else 0.0
     pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
@@ -102,10 +154,15 @@ async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price:
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance'")
-            pnl_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='realized_pnl'")
-            win_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='wins'")
-            loss_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='losses'")
+            claimed = await conn.fetchrow("DELETE FROM sim_positions WHERE id=$1 RETURNING id", pos["id"])
+            if not claimed:
+                # Sudah ditutup proses lain (race) - jangan sentuh balance/history.
+                return None
+
+            bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance' FOR UPDATE")
+            pnl_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='realized_pnl' FOR UPDATE")
+            win_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='wins' FOR UPDATE")
+            loss_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='losses' FOR UPDATE")
 
             balance = float(bal_row["value"]) if bal_row else 1000.0
             realized = float(pnl_row["value"]) if pnl_row else 0.0
@@ -135,12 +192,11 @@ async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price:
                 """,
                 hist_entry["id"], json.dumps(hist_entry),
             )
-            await conn.execute("DELETE FROM sim_positions WHERE id=$1", pos["id"])
 
     return pnl
 
 
-async def check_and_close_tp_sl(pool: asyncpg.Pool, positions: List[dict], prices: Dict[str, float]) -> int:
+async def check_and_close_tp_sl(pool: asyncpg.Pool, session: aiohttp.ClientSession, positions: List[dict], prices: Dict[str, float]) -> int:
     closed = 0
     for pos in positions:
         price = prices.get(pos["symbol"])
@@ -162,7 +218,11 @@ async def check_and_close_tp_sl(pool: asyncpg.Pool, positions: List[dict], price
                 reason = "SL"
         if reason:
             print(f"[{reason}] {pos['symbol']} {pos['direction']} hit at {cur} (tp={tp} sl={sl})")
-            await close_position(pool, pos, reason, price)
+            pnl = await close_position(pool, pos, reason, price)
+            if pnl is None:
+                print(f"[{reason}] {pos['symbol']} sudah ditutup proses lain (race) - skip notif.")
+                continue
+            await notify_telegram_close(session, pos, reason, price, pnl)
             closed += 1
     return closed
 
@@ -193,7 +253,7 @@ async def main_async() -> None:
 
             closed = 0
             if positions:
-                closed = await check_and_close_tp_sl(pool, positions, relevant)
+                closed = await check_and_close_tp_sl(pool, session, positions, relevant)
 
             if pass_no % 30 == 0 or closed:
                 print(f"[price_monitor] pass {pass_no} elapsed={elapsed:.0f}s "

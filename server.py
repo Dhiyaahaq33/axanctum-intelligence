@@ -39,6 +39,7 @@ TZ_WIB = timezone(timedelta(hours=7))
 
 # --- Config ------------------------------------------------------------------
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "zariba")
+PORTFOLIO_PASSWORD = os.environ.get("PORTFOLIO_PASSWORD", "TRADER123")
 DATABASE_URL       = os.environ.get("DATABASE_URL", "")
 
 _db_pool: Optional[asyncpg.Pool] = None
@@ -211,19 +212,20 @@ def _state_response(state: dict) -> dict:
 
 
 async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_price: Optional[float] = None):
+    """
+    Tutup posisi secara atomik (DELETE ... RETURNING sebagai klaim) supaya
+    aman dari race condition dengan price_monitor_once.py (GitHub Actions)
+    yang juga bisa menutup posisi yang sama persis di waktu bersamaan kalau
+    TP/SL kena tepat saat user klik close manual.
+    """
     pos = next((p for p in state["positions"] if p["id"] == pos_id), None)
     if not pos:
         return None
     price = exit_price or state["prices"].get(pos["symbol"], pos["entry"])
     pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] else 0
     pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
-    state["balance"] += pos["margin"] + pnl
-    state["realized_pnl"] += pnl
-    if pnl >= 0:
-        state["wins"] += 1
-    else:
-        state["losses"] += 1
-    entry = {
+
+    hist_entry = {
         "id":        int(time.time() * 1000),
         "time":      datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
         "symbol":    pos["symbol"],
@@ -236,11 +238,49 @@ async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_p
         "tp":        pos["tp"],
         "sl":        pos["sl"],
     }
-    state["history"].insert(0, entry)
-    state["positions"] = [p for p in state["positions"] if p["id"] != pos_id]
-    await delete_position(pos_id)
-    await save_history(entry)
-    await save_account(state)
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            claimed = await conn.fetchrow("DELETE FROM sim_positions WHERE id=$1 RETURNING id", pos_id)
+            if not claimed:
+                # Sudah ditutup proses lain (mis. price_monitor_once.py TP/SL) - batalkan.
+                return None
+
+            bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance' FOR UPDATE")
+            pnl_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='realized_pnl' FOR UPDATE")
+            win_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='wins' FOR UPDATE")
+            loss_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='losses' FOR UPDATE")
+
+            balance = float(bal_row["value"]) if bal_row else 1000.0
+            realized = float(pnl_row["value"]) if pnl_row else 0.0
+            wins = int(win_row["value"]) if win_row else 0
+            losses = int(loss_row["value"]) if loss_row else 0
+
+            balance += pos["margin"] + pnl
+            realized += pnl
+            if pnl >= 0:
+                wins += 1
+            else:
+                losses += 1
+
+            for key, val in [("balance", balance), ("realized_pnl", realized), ("wins", wins), ("losses", losses)]:
+                await conn.execute(
+                    """
+                    INSERT INTO sim_account(key, value) VALUES($1,$2)
+                    ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
+                    """,
+                    key, float(val),
+                )
+
+            await conn.execute(
+                """
+                INSERT INTO sim_history(id, data) VALUES($1,$2)
+                ON CONFLICT(id) DO NOTHING
+                """,
+                hist_entry["id"], json.dumps(hist_entry),
+            )
+
     return pnl
 
 
@@ -265,6 +305,9 @@ class DepositRequest(BaseModel):
 class LoginRequest(BaseModel):
     password: str
 
+class PortfolioAuthRequest(BaseModel):
+    password: str
+
 class SettingsRequest(BaseModel):
     default_leverage: Optional[int] = None
     default_margin_pct: Optional[float] = None
@@ -281,6 +324,15 @@ async def get_state():
 @app.post("/login")
 async def login(req: LoginRequest):
     if req.password == DASHBOARD_PASSWORD:
+        return {"ok": True}
+    raise HTTPException(401, "Password salah")
+
+
+@app.post("/verify-portfolio-password")
+async def verify_portfolio_password(req: PortfolioAuthRequest):
+    """Password kedua (terpisah dari login dashboard) untuk aksi kelola
+    portofolio: deposit/withdraw/set-balance/settings/max-positions/auto-open/reset."""
+    if req.password == PORTFOLIO_PASSWORD:
         return {"ok": True}
     raise HTTPException(401, "Password salah")
 

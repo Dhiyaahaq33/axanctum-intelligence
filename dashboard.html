@@ -18,12 +18,22 @@
   --card-bg: #f5f0ff; --card-border: #ddd0f5;
   --card-glow: 0 1px 4px #c4b8e030, 0 4px 16px #9b8ec415;
 }
+html[data-theme="dark"] {
+  --bg: #171320; --bg2: #201a2c; --bg3: #241f34;
+  --border: #362c4a; --border2: #4a3d64;
+  --text: #ece7f5; --muted: #948aa8;
+  --green: #6fc59a; --red: #e08a9c;
+  --purple: #a89af0; --purple2: #8f80e0;
+  --gold: #d8b06e; --rose: #f0a8ba;
+  --card-bg: #241f34; --card-border: #362c50;
+  --card-glow: 0 1px 4px #00000040, 0 4px 16px #9b8ec425;
+}
 body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; min-height: 100vh; }
 
 .hdr {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 18px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: #faf7ff; z-index: 200; border-bottom: 1px solid var(--card-border);
+  position: sticky; top: 0; background: var(--bg2); z-index: 200; border-bottom: 1px solid var(--card-border);
 }
 .logo-wrap { display: flex; flex-direction: column; }
 .logo { font-size: 16px; font-weight: 400; letter-spacing: 2px; font-family: 'DM Serif Display', serif; color: var(--text); -webkit-text-fill-color: var(--text); }
@@ -149,6 +159,7 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
     <div class="logo-sub">SIMULATION DASHBOARD</div>
   </div>
   <div class="hdr-right">
+    <button class="btn-reset" onclick="toggleTheme()" id="themeBtn" title="Ganti tema">DARK</button>
     <button class="btn-reset" onclick="doReset()">RESET</button>
     <div class="status"><div class="dot"></div><span id="wsStatus">CONNECTING...</span></div>
   </div>
@@ -245,20 +256,20 @@ td input[type="number"] { width: 68px; padding: 3px 5px; margin: 0; font-size: 1
 </div>
 
 <div id="loginOverlay" style="
-  position:fixed;inset:0;background:#fdf8f5;z-index:9999;
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
   display:flex;align-items:center;justify-content:center;
 ">
   <div style="
-    background:#ffffff;border:1px solid #ede8e3;border-radius:16px;
+    background:var(--bg2);border:1px solid var(--border);border-radius:16px;
     padding:36px 40px;width:320px;text-align:center;
     box-shadow:0 8px 40px #a855f720;
   ">
-    <div style="font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:4px;font-family:'DM Serif Display',serif;font-style:italic;color:#2d2420;">Axanctum</div>
-    <div style="font-size:10px;color:#9e8f87;letter-spacing:3px;margin-bottom:28px;font-family:'DM Sans',sans-serif;">INTELLIGENCE 911</div>
+    <div style="font-size:20px;font-weight:400;letter-spacing:2px;margin-bottom:4px;font-family:'DM Serif Display',serif;font-style:italic;color:var(--text);">Axanctum</div>
+    <div style="font-size:10px;color:var(--muted);letter-spacing:3px;margin-bottom:28px;font-family:'DM Sans',sans-serif;">INTELLIGENCE 911</div>
     <div style="font-size:10px;color:#b8a8e8;letter-spacing:1px;margin-bottom:8px;text-align:left;">PASSWORD</div>
     <input id="pwInput" type="password" placeholder="Masukkan password..." style="
-      background:#fdf8f5;border:1px solid #ede8e3;border-radius:8px;
-      color:#2d2420;font-size:13px;padding:10px 14px;width:100%;
+      background:var(--bg);border:1px solid var(--border);border-radius:8px;
+      color:var(--text);font-size:13px;padding:10px 14px;width:100%;
       font-family:inherit;outline:none;margin-bottom:12px;
       transition:border-color 0.2s;
     "
@@ -283,6 +294,42 @@ const API = location.origin;
 let tvChartInstance = null;
   
 // ─── Login ────────────────────────────────────────────────────────────────────
+// --- Tema (dark/light) ---
+const THEME_KEY = 'axanctum_theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme === 'dark' ? 'LIGHT' : 'DARK';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
+  applyTheme(saved);
+})();
+
+// --- Password portofolio (terpisah dari password login) ---
+const PORTFOLIO_AUTH_KEY = 'axanctum_portfolio_auth';
+let _portfolioAuthed = sessionStorage.getItem(PORTFOLIO_AUTH_KEY) === '1';
+
+async function ensurePortfolioAuth() {
+  if (_portfolioAuthed) return true;
+  const pw = prompt('Masukkan password untuk mengatur portofolio:');
+  if (!pw) return false;
+  const res = await api('POST', '/verify-portfolio-password', { password: pw });
+  if (res && res.ok) {
+    _portfolioAuthed = true;
+    sessionStorage.setItem(PORTFOLIO_AUTH_KEY, '1');
+    return true;
+  }
+  showToast('Password portofolio salah', 'err');
+  return false;
+}
+
 const SESSION_KEY = 'axanctum_auth';
 
 
@@ -320,7 +367,11 @@ let ws;
 let _knownSignalIds = new Set();
 let _stateInitialized = false;  // true setelah state pertama kali diterima
 
-function onToggleAuto(el) {
+async function onToggleAuto(el) {
+  const desired = el.checked;
+  el.checked = !desired;
+  if (!(await ensurePortfolioAuth())) return;
+  el.checked = desired;
   autoOpen = el.checked;
   showToast(autoOpen ? 'Auto-open aktif' : 'Mode manual aktif');
   renderSignals();
@@ -429,6 +480,7 @@ async function approveManual(id) {
   await api('POST', '/approve', { signal_id: id, leverage: lev, margin_pct: mPct });
 }
 async function doWithdraw() {
+  if (!(await ensurePortfolioAuth())) return;
   const amt = parseFloat(document.getElementById('depositAmt').value);
   if (!amt || amt <= 0) return;
   await api('POST', '/deposit', { amount: -amt });
@@ -436,6 +488,7 @@ async function doWithdraw() {
 }
 
 async function doSetBalance() {
+  if (!(await ensurePortfolioAuth())) return;
   const amt = parseFloat(document.getElementById('depositAmt').value);
   if (!amt || amt <= 0) return;
   if (!confirm(`Set saldo ke $${amt.toFixed(2)}?`)) return;
@@ -444,24 +497,28 @@ async function doSetBalance() {
 }
 
 async function saveSettings() {
+  if (!(await ensurePortfolioAuth())) return;
   const lev = parseInt(document.getElementById('defLev').value) || 5;
   const mPct = parseFloat(document.getElementById('defMarginPct').value) || 10;
   await api('POST', '/save-settings', { default_leverage: lev, default_margin_pct: mPct });
 }
 
 async function setMaxPos() {
+  if (!(await ensurePortfolioAuth())) return;
   const val = parseInt(document.getElementById('maxPosInput').value) || 0;
   await api('POST', `/set-max-positions?max_pos=${val}`);
   showToast(`Max posisi diset ke ${val === 0 ? 'tidak terbatas' : val}`, 'ok');
 }
 
 async function doDeposit() {
+  if (!(await ensurePortfolioAuth())) return;
   const amt = parseFloat(document.getElementById('depositAmt').value);
   if (!amt || amt <= 0) return;
   await api('POST', '/deposit', { amount: amt });
   showToast(`+$${amt.toFixed(2)} ditambahkan`, 'ok');
 }
 async function doReset() {
+  if (!(await ensurePortfolioAuth())) return;
   if (!confirm('Reset saldo ke $1,000?')) return;
   await api('POST', '/reset'); showToast('Reset berhasil');
 }
