@@ -43,7 +43,12 @@ def _telegram_targets():
     return [(t, c) for t, c in pairs if t and c]
 
 
-async def notify_telegram_close(session: aiohttp.ClientSession, pos: dict, reason: str, exit_price: float, pnl: float) -> None:
+async def notify_telegram_close(
+        session: aiohttp.ClientSession,
+        pos: dict,
+        reason: str,
+        exit_price: float,
+        pnl: float) -> None:
     """Kirim notifikasi Telegram tiap posisi kena TP/SL (eksekusi otomatis)."""
     targets = _telegram_targets()
     if not targets:
@@ -73,7 +78,8 @@ LOOP_BUDGET_SEC = float(os.environ.get("PRICE_MONITOR_BUDGET_SEC", 270))
 LOOP_INTERVAL_SEC = float(os.environ.get("PRICE_MONITOR_INTERVAL_SEC", 2))
 
 
-async def fetch_all_swap_prices(session: aiohttp.ClientSession) -> Dict[str, float]:
+async def fetch_all_swap_prices(
+        session: aiohttp.ClientSession) -> Dict[str, float]:
     """Ambil harga last price semua SWAP OKX dalam 1 request, key format
     Binance-style ('BTCUSDT') supaya cocok dengan format symbol yang dipakai
     di sim_positions."""
@@ -122,7 +128,11 @@ async def save_prices(pool: asyncpg.Pool, prices: Dict[str, float]) -> None:
         )
 
 
-async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price: float) -> Optional[float]:
+async def close_position(
+        pool: asyncpg.Pool,
+        pos: dict,
+        reason: str,
+        exit_price: float) -> Optional[float]:
     """
     Tutup posisi secara atomik supaya aman dari race condition - misalnya
     GitHub Actions run yang tumpang tindih, atau dashboard (server.py) yang
@@ -136,27 +146,29 @@ async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price:
     """
     entry = float(pos["entry"])
     pct = (exit_price - entry) / entry if entry else 0.0
-    pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
+    pnl = (pct if pos["direction"] == "LONG" else -pct) * \
+        pos["margin"] * pos["leverage"]
 
     hist_entry = {
-        "id":        int(time.time() * 1000),
-        "time":      datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
-        "symbol":    pos["symbol"],
+        "id": int(time.time() * 1000),
+        "time": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
+        "symbol": pos["symbol"],
         "direction": pos["direction"],
-        "entry":     pos["entry"],
-        "exit":      round(exit_price, 6),
-        "pnl":       round(pnl, 4),
-        "reason":    reason,
+        "entry": pos["entry"],
+        "exit": round(exit_price, 6),
+        "pnl": round(pnl, 4),
+        "reason": reason,
         "opened_at": pos.get("opened_at", ""),
-        "tp":        pos["tp"],
-        "sl":        pos["sl"],
+        "tp": pos["tp"],
+        "sl": pos["sl"],
     }
 
     async with pool.acquire() as conn:
         async with conn.transaction():
             claimed = await conn.fetchrow("DELETE FROM sim_positions WHERE id=$1 RETURNING id", pos["id"])
             if not claimed:
-                # Sudah ditutup proses lain (race) - jangan sentuh balance/history.
+                # Sudah ditutup proses lain (race) - jangan sentuh
+                # balance/history.
                 return None
 
             bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance' FOR UPDATE")
@@ -176,7 +188,8 @@ async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price:
             else:
                 losses += 1
 
-            for key, val in [("balance", balance), ("realized_pnl", realized), ("wins", wins), ("losses", losses)]:
+            for key, val in [("balance", balance), ("realized_pnl",
+                                                    realized), ("wins", wins), ("losses", losses)]:
                 await conn.execute(
                     """
                     INSERT INTO sim_account(key, value) VALUES($1,$2)
@@ -196,7 +209,11 @@ async def close_position(pool: asyncpg.Pool, pos: dict, reason: str, exit_price:
     return pnl
 
 
-async def check_and_close_tp_sl(pool: asyncpg.Pool, session: aiohttp.ClientSession, positions: List[dict], prices: Dict[str, float]) -> int:
+async def check_and_close_tp_sl(pool: asyncpg.Pool,
+                                session: aiohttp.ClientSession,
+                                positions: List[dict],
+                                prices: Dict[str,
+                                             float]) -> int:
     closed = 0
     for pos in positions:
         price = prices.get(pos["symbol"])
@@ -217,10 +234,12 @@ async def check_and_close_tp_sl(pool: asyncpg.Pool, session: aiohttp.ClientSessi
             elif cur >= sl:
                 reason = "SL"
         if reason:
-            print(f"[{reason}] {pos['symbol']} {pos['direction']} hit at {cur} (tp={tp} sl={sl})")
+            print(
+                f"[{reason}] {pos['symbol']} {pos['direction']} hit at {cur} (tp={tp} sl={sl})")
             pnl = await close_position(pool, pos, reason, price)
             if pnl is None:
-                print(f"[{reason}] {pos['symbol']} sudah ditutup proses lain (race) - skip notif.")
+                print(
+                    f"[{reason}] {pos['symbol']} sudah ditutup proses lain (race) - skip notif.")
                 continue
             await notify_telegram_close(session, pos, reason, price, pnl)
             closed += 1
@@ -247,7 +266,8 @@ async def main_async() -> None:
             positions = await load_open_positions(pool)
             all_prices = await fetch_all_swap_prices(session)
 
-            relevant = {p["symbol"]: all_prices[p["symbol"]] for p in positions if p["symbol"] in all_prices}
+            relevant = {p["symbol"]: all_prices[p["symbol"]]
+                        for p in positions if p["symbol"] in all_prices}
             if relevant:
                 await save_prices(pool, relevant)
 
@@ -262,7 +282,7 @@ async def main_async() -> None:
             await asyncio.sleep(LOOP_INTERVAL_SEC)
 
     await pool.close()
-    print(f"[price_monitor] done - total {pass_no} pass dalam {time.monotonic()-t_start:.0f}s")
+    print(f"[price_monitor] done - total {pass_no} pass dalam {time.monotonic() - t_start:.0f}s")
 
 
 def main() -> None:
