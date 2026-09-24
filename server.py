@@ -28,7 +28,7 @@ import json
 import os
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Any
 
 import asyncpg
 from fastapi import FastAPI, HTTPException
@@ -40,7 +40,7 @@ TZ_WIB = timezone(timedelta(hours=7))
 # --- Config ------------------------------------------------------------------
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "zariba")
 PORTFOLIO_PASSWORD = os.environ.get("PORTFOLIO_PASSWORD", "TRADER123")
-DATABASE_URL       = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 _db_pool: Optional[asyncpg.Pool] = None
 _db_ready = False
@@ -86,15 +86,15 @@ async def get_pool() -> asyncpg.Pool:
 
 
 DEFAULT_ACCOUNT = {
-    "balance":            1000.0,
-    "realized_pnl":       0.0,
-    "wins":               0,
-    "losses":             0,
-    "max_positions":      0,
-    "default_leverage":   5,
+    "balance": 1000.0,
+    "realized_pnl": 0.0,
+    "wins": 0,
+    "losses": 0,
+    "max_positions": 0,
+    "default_leverage": 5,
     "default_margin_pct": 10,
-    "auto_open":          False,
-    "signal_id_counter":  1,
+    "auto_open": False,
+    "signal_id_counter": 1,
 }
 
 
@@ -103,7 +103,7 @@ async def load_state() -> dict:
     request supaya selalu dapat data terbaru (tidak ada memori antar-request
     yang bisa diandalkan di serverless)."""
     pool = await get_pool()
-    state = dict(DEFAULT_ACCOUNT)
+    state: dict[str, Any] = dict(DEFAULT_ACCOUNT)
     async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT key, value FROM sim_account")
         for r in rows:
@@ -232,23 +232,27 @@ async def save_history(entry: dict) -> None:
 
 def _state_response(state: dict) -> dict:
     return {
-        "type":               "state",
-        "balance":            state["balance"],
-        "realized_pnl":       state["realized_pnl"],
-        "wins":               state["wins"],
-        "losses":             state["losses"],
-        "positions":          state["positions"],
-        "signals":            state["signals"],
-        "history":            state["history"][:50],
-        "prices":             state["prices"],
-        "max_positions":      state.get("max_positions", 0),
-        "default_leverage":   state.get("default_leverage", 5),
+        "type": "state",
+        "balance": state["balance"],
+        "realized_pnl": state["realized_pnl"],
+        "wins": state["wins"],
+        "losses": state["losses"],
+        "positions": state["positions"],
+        "signals": state["signals"],
+        "history": state["history"][:50],
+        "prices": state["prices"],
+        "max_positions": state.get("max_positions", 0),
+        "default_leverage": state.get("default_leverage", 5),
         "default_margin_pct": state.get("default_margin_pct", 10),
-        "auto_open":          state.get("auto_open", False),
+        "auto_open": state.get("auto_open", False),
     }
 
 
-async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_price: Optional[float] = None):
+async def _close_position_in_state(
+        state: dict,
+        pos_id: int,
+        reason: str,
+        exit_price: Optional[float] = None):
     """
     Tutup posisi secara atomik (DELETE ... RETURNING sebagai klaim) supaya
     aman dari race condition dengan price_monitor_once.py (GitHub Actions)
@@ -260,20 +264,21 @@ async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_p
         return None
     price = exit_price or state["prices"].get(pos["symbol"], pos["entry"])
     pct = (price - pos["entry"]) / pos["entry"] if pos["entry"] else 0
-    pnl = (pct if pos["direction"] == "LONG" else -pct) * pos["margin"] * pos["leverage"]
+    pnl = (pct if pos["direction"] == "LONG" else -pct) * \
+        pos["margin"] * pos["leverage"]
 
     hist_entry = {
-        "id":        int(time.time() * 1000),
-        "time":      datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
-        "symbol":    pos["symbol"],
+        "id": int(time.time() * 1000),
+        "time": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
+        "symbol": pos["symbol"],
         "direction": pos["direction"],
-        "entry":     pos["entry"],
-        "exit":      round(price, 6),
-        "pnl":       round(pnl, 4),
-        "reason":    reason,
+        "entry": pos["entry"],
+        "exit": round(price, 6),
+        "pnl": round(pnl, 4),
+        "reason": reason,
         "opened_at": pos.get("opened_at", ""),
-        "tp":        pos["tp"],
-        "sl":        pos["sl"],
+        "tp": pos["tp"],
+        "sl": pos["sl"],
     }
 
     pool = await get_pool()
@@ -281,7 +286,8 @@ async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_p
         async with conn.transaction():
             claimed = await conn.fetchrow("DELETE FROM sim_positions WHERE id=$1 RETURNING id", pos_id)
             if not claimed:
-                # Sudah ditutup proses lain (mis. price_monitor_once.py TP/SL) - batalkan.
+                # Sudah ditutup proses lain (mis. price_monitor_once.py TP/SL)
+                # - batalkan.
                 return None
 
             bal_row = await conn.fetchrow("SELECT value FROM sim_account WHERE key='balance' FOR UPDATE")
@@ -301,7 +307,8 @@ async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_p
             else:
                 losses += 1
 
-            for key, val in [("balance", balance), ("realized_pnl", realized), ("wins", wins), ("losses", losses)]:
+            for key, val in [("balance", balance), ("realized_pnl",
+                                                    realized), ("wins", wins), ("losses", losses)]:
                 await conn.execute(
                     """
                     INSERT INTO sim_account(key, value) VALUES($1,$2)
@@ -324,26 +331,43 @@ async def _close_position_in_state(state: dict, pos_id: int, reason: str, exit_p
 app = FastAPI(title="AXANCTUM INTELLIGENCE 911")
 
 # --- Models --------------------------------------------------------------
+
+
 class Signal(BaseModel):
-    symbol: str; direction: str; entry: float; tp: float; sl: float
-    grade: str = "B"; leverage: int = 5; source: str = "bot"
+    symbol: str
+    direction: str
+    entry: float
+    tp: float
+    sl: float
+    grade: str = "B"
+    leverage: int = 5
+    source: str = "bot"
+
 
 class ApproveRequest(BaseModel):
-    signal_id: int; leverage: Optional[int] = None
-    tp: Optional[float] = None; sl: Optional[float] = None
+    signal_id: int
+    leverage: Optional[int] = None
+    tp: Optional[float] = None
+    sl: Optional[float] = None
     margin_pct: float = 0.1
 
+
 class CloseRequest(BaseModel):
-    position_id: int; reason: str = "Manual"
+    position_id: int
+    reason: str = "Manual"
+
 
 class DepositRequest(BaseModel):
     amount: float
 
+
 class LoginRequest(BaseModel):
     password: str
 
+
 class PortfolioAuthRequest(BaseModel):
     password: str
+
 
 class SettingsRequest(BaseModel):
     default_leverage: Optional[int] = None
@@ -403,26 +427,28 @@ async def receive_signal(sig: Signal):
             print(f"[AutoOpen] Max posisi ({max_pos}) tercapai, skip")
         else:
             margin_pct = state.get("default_margin_pct", 10) / 100
-            leverage   = state.get("default_leverage", 5)
-            margin     = state["balance"] * margin_pct
+            leverage = state.get("default_leverage", 5)
+            margin = state["balance"] * margin_pct
             if margin > 0 and state["balance"] >= margin:
                 pos = {
-                    "id":        int(time.time() * 1000),
-                    "symbol":    symbol,
+                    "id": int(time.time() * 1000),
+                    "symbol": symbol,
                     "direction": signal["direction"],
-                    "entry":     signal["entry"],
-                    "tp":        signal["tp"],
-                    "sl":        signal["sl"],
-                    "leverage":  leverage,
-                    "margin":    round(margin, 4),
+                    "entry": signal["entry"],
+                    "tp": signal["tp"],
+                    "sl": signal["sl"],
+                    "leverage": leverage,
+                    "margin": round(margin, 4),
                     "opened_at": datetime.now(TZ_WIB).strftime("%d/%m %H:%M"),
                 }
                 opened = await open_position_atomic(pos, margin)
                 if opened:
                     await delete_signal(signal["id"])
-                    print(f"[AutoOpen] {symbol} {signal['direction']} @ {signal['entry']}")
+                    print(
+                        f"[AutoOpen] {symbol} {signal['direction']} @ {signal['entry']}")
                 else:
-                    print(f"[AutoOpen] {symbol} sudah dibuka proses lain (race) - skip.")
+                    print(
+                        f"[AutoOpen] {symbol} sudah dibuka proses lain (race) - skip.")
             else:
                 print(f"[AutoOpen] Saldo tidak cukup untuk {symbol}")
 
@@ -447,7 +473,9 @@ async def approve_signal(req: ApproveRequest):
     max_pos = state.get("max_positions", 0)
     if max_pos > 0 and len(state["positions"]) >= max_pos:
         await delete_signal(req.signal_id)
-        return {"ok": False, "reason": f"Max posisi ({max_pos}) sudah tercapai"}
+        return {
+            "ok": False,
+            "reason": f"Max posisi ({max_pos}) sudah tercapai"}
 
     symbol = sig["symbol"]
     already_open = any(p["symbol"] == symbol for p in state["positions"])
@@ -490,7 +518,10 @@ async def close_position(req: CloseRequest):
 
 
 @app.post("/update-position/{pos_id}")
-async def update_position(pos_id: int, tp: Optional[float] = None, sl: Optional[float] = None):
+async def update_position(
+        pos_id: int,
+        tp: Optional[float] = None,
+        sl: Optional[float] = None):
     state = await load_state()
     pos = next((p for p in state["positions"] if p["id"] == pos_id), None)
     if not pos:
@@ -554,7 +585,11 @@ async def reset():
 
 
 @app.get("/klines/{symbol}")
-async def get_klines(symbol: str, interval: str = "15m", limit: int = 100, endTime: Optional[int] = None):
+async def get_klines(
+        symbol: str,
+        interval: str = "15m",
+        limit: int = 100,
+        endTime: Optional[int] = None):
     """
     Proxy chart candle - pakai OKX (Binance memblokir IP US/Vercel serverless).
     symbol format tetap Binance-style ('BTCUSDT') supaya frontend tidak perlu
@@ -581,9 +616,11 @@ async def get_klines(symbol: str, interval: str = "15m", limit: int = 100, endTi
                 if resp.status == 200:
                     body = await resp.json(content_type=None)
                     rows = body.get("data", [])
-                    rows = list(reversed(rows))  # OKX newest-first -> oldest-first
+                    # OKX newest-first -> oldest-first
+                    rows = list(reversed(rows))
                     # Format ulang ke shape Binance-kline-like supaya chart lib
-                    # di frontend (yang mengharap [openTime,o,h,l,c,vol,...]) tetap jalan.
+                    # di frontend (yang mengharap [openTime,o,h,l,c,vol,...])
+                    # tetap jalan.
                     return [
                         [int(r[0]), r[1], r[2], r[3], r[4], r[5], int(r[0]), r[7], 0, r[6], "0", "0"]
                         for r in rows
